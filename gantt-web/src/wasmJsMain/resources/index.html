@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gantt Web App</title>
+    <script type="application/javascript" src="gantt-app.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden; /* Or scroll, depending on your app's needs */
+        }
+        #root {
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="ganttasticCanvas"></canvas>
+<!--
+    Replace <your_module_name>.js with the actual name of your JS output file.
+    For a module named "shared", this would typically be "shared.js".
+    The Kotlin Gradle plugin usually names it after the module.
+    Check your `build/js/packages/<your_module_name>/kotlin` directory after building.
+-->
+</body>
+</html>

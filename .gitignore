@@ -1,0 +1,62 @@
+# Gradle
+.gradle/
+build/
+local.properties
+gradle-app.setting
+!gradle-wrapper.jar
+
+# Kotlin
+.kotlin/
+kotlin-js-store/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+captures/
+
+# Android
+/*/build/
+/*/*/build/
+*.apk
+*.aab
+*.ap_
+*.aar
+*.dex
+gen/
+lint/
+*.log
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Node.js (for JS targets)
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+# Web
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Compose Web
+/gantt-web/build/
+/gantt-web/dist/
+/gantt-web/package-lock.json
+
+# Miscellaneous
+*.class
+*.jar
+*.hprof
