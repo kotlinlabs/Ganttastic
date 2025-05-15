@@ -50,7 +50,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
-    implementation(projects.shared)
+    implementation(projects.ganttly)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

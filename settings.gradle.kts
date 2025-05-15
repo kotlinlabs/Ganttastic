@@ -11,10 +11,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        mavenLocal()
     }
 }
 
 rootProject.name = "Ganttastic"
-include(":shared")
+include(":ganttly")
 include(":gantt-app")
 include(":gantt-web")
