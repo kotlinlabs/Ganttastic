@@ -1,0 +1,9 @@
+package io.github.kotlinlabs.ganttly
+
+class Greeting {
+    private val platform: Platform = getPlatform()
+
+    fun greet(): String {
+        return "Hello, ${platform.name}!"
+    }
+}

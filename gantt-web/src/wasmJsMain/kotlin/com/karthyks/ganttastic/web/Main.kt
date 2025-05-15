@@ -4,8 +4,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.remember
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.CanvasBasedWindow
-import com.karthyks.ganttastic.chart.GanttChartView
-import com.karthyks.ganttastic.chart.createSampleGanttState
+import io.github.kotlinlabs.ganttly.chart.GanttChartView
+import io.github.kotlinlabs.ganttly.chart.createSampleGanttState
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {

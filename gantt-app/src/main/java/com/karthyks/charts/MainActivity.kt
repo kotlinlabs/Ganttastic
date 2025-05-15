@@ -13,7 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.karthyks.charts.ui.theme.GanttasticTheme
-import com.karthyks.ganttastic.Greeting
+import io.github.kotlinlabs.ganttly.Greeting
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
