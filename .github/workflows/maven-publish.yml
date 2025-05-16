@@ -3,57 +3,10 @@ name: Publish to Maven Central
 on:
   push:
     tags:
-      - 'v*' # Triggers the workflow when a tag matching v* (e.g., v1.0.0) is pushed
+      - 'v*' # Run when tags matching 'v*' are pushed (e.g., 'v1.0.0')
 
 jobs:
-  publish:
-    name: Publish to Maven Central
-    runs-on: ubuntu-latest
-
-    steps:
-      # Checkout the repository
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Set up JDK for Gradle
-      - name: Setup JDK 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
-
-      # Cache Gradle wrapper and dependencies
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Set credentials in gradle.properties
-        run: |
-          echo "" >> gradle.properties
-          echo "mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralUsername }}" >> gradle.properties
-          echo "" >> gradle.properties
-          echo "mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralPassword }}" >> gradle.properties
-          echo "" >> gradle.properties
-
-      # Set up environment variables (for Sonatype credentials)
-      - name: Set environment variables
-        env:
-          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyId }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKey }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyPassword }}
-        run: echo "Environment variables set"
-
-      # Publish to Maven Central
-      - name: Publish artifacts to Maven Central
-        run: ./gradlew :ganttly:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
-
-      # Additional step to verify completion (optional)
-      - name: Verify publishing output
-        run: echo "Publish process completed!"
+  call-reusable-workflow:
+    uses: ./.github/workflows/maven-publish-base.yml
+    with:
+      dryRun: false
