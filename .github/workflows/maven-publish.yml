@@ -10,3 +10,4 @@ jobs:
     uses: ./.github/workflows/maven-publish-base.yml
     with:
       dryRun: false
+    secrets: inherit
