@@ -36,8 +36,11 @@ jobs:
 
       - name: Set credentials in gradle.properties
         run: |
+          echo "" >> gradle.properties
           echo "mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralUsername }}" >> gradle.properties
+          echo "" >> gradle.properties
           echo "mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_mavenCentralPassword }}" >> gradle.properties
+          echo "" >> gradle.properties
 
       # Set up environment variables (for Sonatype credentials)
       - name: Set environment variables
