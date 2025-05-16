@@ -104,7 +104,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Developed pairing with Jetbrains [Junie](https://www.jetbrains.com/junie/)
 
 ## Roadmap
-- [ ] Publish library
+- [x] Publish library
 - [ ] Implement critical path calculation
 - [ ] Add timeline zoom
 - [ ] Support for recurring tasks
