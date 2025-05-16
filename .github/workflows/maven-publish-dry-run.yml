@@ -1,9 +1,9 @@
 name: Publish to Maven Central
 
 on:
-  push:
-    tags:
-      - 'v*' # Triggers the workflow when a tag matching v* (e.g., v1.0.0) is pushed
+  pull_request:
+    branches:
+      - main
 
 jobs:
   publish:
@@ -52,8 +52,8 @@ jobs:
 
       # Publish to Maven Central
       - name: Publish artifacts to Maven Central
-        run: ./gradlew :ganttly:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
+        run: ./gradlew :ganttly:publishAllPublicationsToMavenCentralRepository --no-configuration-cache --dry-run
 
       # Additional step to verify completion (optional)
       - name: Verify publishing output
-        run: echo "Publish process completed!"
+        run: echo "Publish dry run process completed!"
