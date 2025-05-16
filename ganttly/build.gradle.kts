@@ -70,7 +70,7 @@ android {
 }
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
     signAllPublications()
 
     coordinates("$group", name, "$version")
@@ -79,7 +79,7 @@ mavenPublishing {
         name.set("Ganttly")
         description.set("A library to create gantt charts in Compose Multiplatform")
         inceptionYear.set("2025")
-        url.set("https://github.com/karthyks/Ganttastic")
+        url.set("https://github.com/kotlinlabs/Ganttastic")
         licenses {
             license {
                 name.set("The Apache License, Version 2.0")
@@ -91,13 +91,13 @@ mavenPublishing {
             developer {
                 id.set("karthyks")
                 name.set("Karthik Periasami")
-                url.set("https://github.com/karthyks/")
+                url.set("https://github.com/kotlinlabs/")
             }
         }
         scm {
-            url.set("https://github.com/karthyks/Ganttastic/")
-            connection.set("scm:git:git://github.com/karthyks/Ganttastic.git")
-            developerConnection.set("scm:git:ssh://git@github.com/karthyks/Ganttastic.git")
+            url.set("https://github.com/kotlinlabs/Ganttastic/")
+            connection.set("scm:git:git://github.com/kotlinlabs/Ganttastic.git")
+            developerConnection.set("scm:git:ssh://git@github.com/kotlinlabs/Ganttastic.git")
         }
     }
 }
