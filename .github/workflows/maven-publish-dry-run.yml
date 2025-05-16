@@ -57,6 +57,10 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyPassword }}
         run: echo "Environment variables set"
 
+      # Sign Publication
+      - name: Publish artifacts to Maven Central
+        run: ./gradlew :ganttly:signWasmJsPublication
+
       # Publish to Maven Central
       - name: Publish artifacts to Maven Central
         run: ./gradlew :ganttly:publishAllPublicationsToMavenCentralRepository --no-configuration-cache --dry-run
