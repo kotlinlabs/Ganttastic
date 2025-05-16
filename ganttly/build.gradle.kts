@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "io.github.kotlinlabs"
-version = "0.1.0"
+version = "0.1.1-SNAPSHOT"
 
 kotlin {
     androidTarget {
