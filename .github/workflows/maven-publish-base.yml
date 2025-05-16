@@ -6,7 +6,7 @@ on:
       dryRun:
         required: true
         description: "Whether to perform a dry run"
-        default: "false"
+        default: false
         type: boolean
 
 jobs:
@@ -51,7 +51,7 @@ jobs:
       # Publish or Dry Publish depending on input
       - name: Publish or Dry Run with signing
         run: |
-          if [ "${{ inputs.dryRun }}" == "true" ]; then
+          if [ "${{ inputs.dryRun }}" == true ]; then
             ./gradlew :ganttly:signWasmJsPublication && ./gradlew :ganttly:publishAllPublicationsToMavenCentralRepository --no-configuration-cache --dry-run
           else
             ./gradlew :ganttly:publishAllPublicationsToMavenCentralRepository --no-configuration-cache
@@ -66,7 +66,7 @@ jobs:
       # Verify Output
       - name: Verify output
         run: |
-          if [ "${{ inputs.dryRun }}" == "true" ]; then
+          if [ "${{ inputs.dryRun }}" == true ]; then
             echo "Dry publish process completed!"
           else
             echo "Publish process completed!"

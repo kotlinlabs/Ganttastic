@@ -9,4 +9,4 @@ jobs:
   call-reusable-workflow:
     uses: ./.github/workflows/maven-publish-base.yml # Call reusable workflow
     with:
-      dryRun: "true"
+      dryRun: true
