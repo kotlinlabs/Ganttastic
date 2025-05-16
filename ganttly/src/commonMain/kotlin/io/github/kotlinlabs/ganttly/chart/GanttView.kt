@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -13,10 +12,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,7 +51,8 @@ fun GanttChartView(
             .collect { (index, offset) ->
                 // When taskList scrolls, update the chart grid
                 if (chartGridState.firstVisibleItemIndex != index ||
-                    chartGridState.firstVisibleItemScrollOffset != offset) {
+                    chartGridState.firstVisibleItemScrollOffset != offset
+                ) {
                     chartGridState.scrollToItem(index, offset)
                 }
             }
@@ -67,13 +63,17 @@ fun GanttChartView(
             .collect { (index, offset) ->
                 // When chart grid scrolls, update the taskList
                 if (taskListState.firstVisibleItemIndex != index ||
-                    taskListState.firstVisibleItemScrollOffset != offset) {
+                    taskListState.firstVisibleItemScrollOffset != offset
+                ) {
                     taskListState.scrollToItem(index, offset)
                 }
             }
     }
 
-    Row(modifier = modifier.fillMaxSize()) {
+    Row(
+        modifier = modifier
+            .fillMaxSize()
+    ) {
         if (showTaskList) {
             TaskListPanel(
                 tasks = state.tasks,
@@ -120,8 +120,10 @@ fun GanttChartView(
                 TaskTooltip(
                     task = state.tasks.first { it.id == info.taskId },
                     position = info.position,
-                    allTasks = state.tasks
+                    allTasks = state.tasks,
+                    layoutInfo = chartGridState.layoutInfo
                 )
+
             }
         }
     }

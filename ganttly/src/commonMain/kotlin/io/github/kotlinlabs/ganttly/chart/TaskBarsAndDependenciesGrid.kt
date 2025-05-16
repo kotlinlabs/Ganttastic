@@ -71,9 +71,19 @@ fun TaskBarsAndDependenciesGrid(
 
     var chartWidthPx by remember { mutableStateOf(0f) }
     val pointerPositionState = remember { mutableStateOf<Offset?>(null) }
+    val pointerInputKey = remember { mutableStateOf(0) }
 
     // Keep track of the visible items - this is crucial for scrolling
     val visibleItems = remember { mutableStateListOf<Int>() }
+
+    // Update the key whenever the list scrolls to force pointerInput to re-initialize
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect {
+                // Increment the key to force recomposition of pointerInput
+                pointerInputKey.value++
+            }
+    }
 
     // Update visible items when the list scrolls
     LaunchedEffect(listState) {
@@ -91,7 +101,7 @@ fun TaskBarsAndDependenciesGrid(
             .onSizeChanged { size ->
                 chartWidthPx = size.width.toFloat()
             }
-            .pointerInput(Unit) {
+            .pointerInput(pointerInputKey.value) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -101,7 +111,7 @@ fun TaskBarsAndDependenciesGrid(
                             PointerEventType.Move -> {
                                 val position = event.changes.first().position
                                 pointerPositionState.value = position
-
+                                println("Pointer position: $position")
                                 // Check if pointer is over any task
                                 val hoveredTask = findTaskAtPosition(
                                     position = position,
@@ -112,6 +122,7 @@ fun TaskBarsAndDependenciesGrid(
                                 )
 
                                 if (hoveredTask != null) {
+                                    println("Hovering over task: ${hoveredTask.name}")
                                     onTaskHover(TaskHoverInfo(
                                         taskId = hoveredTask.id,
                                         position = position
@@ -271,36 +282,47 @@ fun findTaskAtPosition(
     rowHeightPx: Float,
     lazyListState: LazyListState
 ): GanttTask? {
-    val scrollOffset = lazyListState.firstVisibleItemScrollOffset
-    val firstVisibleIndex = lazyListState.firstVisibleItemIndex
+    // Get visible items info directly from the LazyListState
+    val visibleItemsInfo = lazyListState.layoutInfo.visibleItemsInfo
 
-    // Calculate which row we're in based on Y position
-    val rowIndex = ((position.y + scrollOffset) / rowHeightPx).toInt()
-    val adjustedRowIndex = firstVisibleIndex + rowIndex
+    // If there are no visible items, return null
+    if (visibleItemsInfo.isEmpty()) return null
 
-    if (adjustedRowIndex < 0 || adjustedRowIndex >= tasks.size) return null
+    // Find which visible item contains the y-coordinate of the pointer
+    for (itemInfo in visibleItemsInfo) {
+        val itemIndex = itemInfo.index
+        val itemTopY = itemInfo.offset.toFloat()
+        val itemBottomY = itemTopY + rowHeightPx
 
-    val task = tasks[adjustedRowIndex]
+        // Check if the position's Y coordinate is within this item's bounds
+        if (position.y >= itemTopY && position.y <= itemBottomY) {
+            if (itemIndex < 0 || itemIndex >= tasks.size) continue
 
-    // Calculate task boundaries
-    val taskStartOffsetSeconds = timelineViewInfo.viewStartDate.until(
-        task.startDate, DateTimeUnit.SECOND, TimeZone.UTC
-    )
+            val task = tasks[itemIndex]
 
-    val taskX = (taskStartOffsetSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
-    val taskWidthPx = (task.duration.inWholeSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
-    val barHeight = rowHeightPx * 0.7f
-    val barTopY = (adjustedRowIndex * rowHeightPx) - scrollOffset + (rowHeightPx - barHeight) / 2
+            // Calculate task bar boundaries within this item
+            val taskStartOffsetSeconds = timelineViewInfo.viewStartDate.until(
+                task.startDate, DateTimeUnit.SECOND, TimeZone.UTC
+            )
 
-    // Check if position is within task bar
-    return if (position.x >= taskX &&
-        position.x <= taskX + taskWidthPx &&
-        position.y >= barTopY &&
-        position.y <= barTopY + barHeight) {
-        task
-    } else {
-        null
+            val taskX = (taskStartOffsetSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
+            val taskWidthPx = (task.duration.inWholeSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
+
+            // Calculate the height and position of the actual task bar within the row
+            val barHeight = rowHeightPx * 0.7f
+            val barTopY = itemTopY + (rowHeightPx - barHeight) / 2
+
+            // Check if position is within task bar
+            if (position.x >= taskX &&
+                position.x <= taskX + taskWidthPx &&
+                position.y >= barTopY &&
+                position.y <= barTopY + barHeight) {
+                return task
+            }
+        }
     }
+
+    return null
 }
 
 fun drawTaskBar(
