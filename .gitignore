@@ -3,7 +3,6 @@
 build/
 local.properties
 gradle-app.setting
-!gradle-wrapper.jar
 
 # Kotlin
 .kotlin/
@@ -60,3 +59,5 @@ replay_pid*
 *.class
 *.jar
 *.hprof
+
+!gradle-wrapper.jar
