@@ -1,5 +1,8 @@
 package io.github.kotlinlabs.ganttly.chart
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -12,7 +15,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -27,6 +32,8 @@ const val DEFAULT_TASK_LIST_WIDTH_DP = 220
 const val DEFAULT_ROW_HEIGHT_DP = 36 // Slightly smaller for more tasks
 const val DEFAULT_HEADER_HEIGHT_DP = 40
 
+const val DEFAULT_HEADER_EXPANDED_HEIGHT_DP = 250
+
 @Composable
 fun GanttChartView(
     state: GanttChartState,
@@ -35,7 +42,9 @@ fun GanttChartView(
     rowHeight: Dp = DEFAULT_ROW_HEIGHT_DP.dp,
     headerHeight: Dp = DEFAULT_HEADER_HEIGHT_DP.dp,
     showTaskList: Boolean = true,
-    hoverDelay: Long = 150
+    hoverDelay: Long = 150,
+    headerContent: @Composable (() -> Unit)? = null,
+    headerMaxHeight: Dp = DEFAULT_HEADER_EXPANDED_HEIGHT_DP.dp
 ) {
     // Add hover state
     var hoveredTaskInfo by remember { mutableStateOf<TaskHoverInfo?>(null) }
@@ -44,6 +53,31 @@ fun GanttChartView(
     // Create separate scroll states for each component
     val taskListState = rememberLazyListState()
     val chartGridState = rememberLazyListState()
+
+    // Calculate header visibility based on scroll position
+    val headerCollapseFraction by remember {
+        derivedStateOf {
+            // When first item is visible and not scrolled, header should be fully expanded (0.0f)
+            // As the first item scrolls up, header should collapse (towards 1.0f)
+            val firstVisibleItemIndex = chartGridState.firstVisibleItemIndex
+            val firstVisibleItemOffset = chartGridState.firstVisibleItemScrollOffset
+
+            if (firstVisibleItemIndex == 0) {
+                // Map the scroll offset to a 0.0 - 1.0 range (0 = fully expanded, 1 = fully collapsed)
+                // Assuming we want to collapse over the first 200 pixels of scrolling
+                val collapseTresholdPx = 200f
+                (firstVisibleItemOffset / collapseTresholdPx).coerceIn(0f, 1f)
+            } else {
+                // If we're past the first item, header is fully collapsed
+                1.0f
+            }
+        }
+    }
+
+    // Calculate the actual header height based on the collapse fraction
+    val headerCurrentHeight = with(LocalDensity.current) {
+        lerp(headerMaxHeight.toPx(), 0f, headerCollapseFraction).toDp()
+    }
 
     // Synchronize the two scroll states
     LaunchedEffect(taskListState) {
@@ -70,63 +104,87 @@ fun GanttChartView(
             }
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxSize()
-    ) {
-        if (showTaskList) {
-            TaskListPanel(
-                tasks = state.tasks,
-                width = taskListWidth,
-                rowHeight = rowHeight,
-                headerHeight = headerHeight,
-                listState = taskListState, // Use separate state
-                modifier = Modifier.fillMaxHeight()
-            )
-
-            HorizontalDivider(
-                modifier = Modifier.fillMaxHeight().width(1.dp)
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
-            )
+    Column(modifier = modifier.fillMaxSize()) {
+        // Collapsible header - only show if headerContent is provided
+        headerContent?.let {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(headerCurrentHeight)
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                    .alpha(1f - headerCollapseFraction) // Fade out as it collapses
+            ) {
+                // Actually render the header content
+                headerContent()
+            }
         }
 
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-        ) {
-            // Draw the chart content
-            TimelinePanel(
-                state = state,
-                rowHeight = rowHeight,
-                headerHeight = headerHeight,
-                hoveredTaskInfo = hoveredTaskInfo,
-                listState = chartGridState, // Use separate state
-                onTaskHover = { taskInfo ->
-                    if (taskInfo != null) {
-                        hoverDebouncer.debounce {
-                            hoveredTaskInfo = taskInfo
-                        }
-                    } else {
-                        hoverDebouncer.cancel()
-                        hoveredTaskInfo = null
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // Draw the tooltip
-            hoveredTaskInfo?.let { info ->
-                TaskTooltip(
-                    task = state.tasks.first { it.id == info.taskId },
-                    position = info.position,
-                    allTasks = state.tasks,
-                    layoutInfo = chartGridState.layoutInfo
+        // Main chart area
+        Row(modifier = Modifier.weight(1f)) {
+            if (showTaskList) {
+                TaskListPanel(
+                    tasks = state.tasks,
+                    width = taskListWidth,
+                    rowHeight = rowHeight,
+                    headerHeight = headerHeight,
+                    listState = taskListState,
+                    modifier = Modifier.fillMaxHeight()
                 )
 
+                HorizontalDivider(
+                    modifier = Modifier.fillMaxHeight().width(1.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                // Draw the chart content
+                TimelinePanel(
+                    state = state,
+                    rowHeight = rowHeight,
+                    headerHeight = headerHeight,
+                    hoveredTaskInfo = hoveredTaskInfo,
+                    listState = chartGridState,
+                    onTaskHover = { taskInfo ->
+                        if (taskInfo != null) {
+                            hoverDebouncer.debounce {
+                                hoveredTaskInfo = taskInfo
+                            }
+                        } else {
+                            hoverDebouncer.cancel()
+                            hoveredTaskInfo = null
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Draw the tooltip
+                hoveredTaskInfo?.let { info ->
+                    TaskTooltip(
+                        task = state.tasks.first { it.id == info.taskId },
+                        position = info.position,
+                        allTasks = state.tasks,
+                        layoutInfo = chartGridState.layoutInfo
+                    )
+                }
             }
         }
     }
+}
+
+
+// Helper function to interpolate between two values based on a fraction
+private fun lerp(start: Float, end: Float, fraction: Float): Float {
+    return start + (end - start) * fraction
 }
 
 @Composable
