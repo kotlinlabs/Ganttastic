@@ -101,3 +101,7 @@ mavenPublishing {
         }
     }
 }
+
+tasks.named("signWasmJsPublication").configure {
+    outputs.upToDateWhen { false }
+}
