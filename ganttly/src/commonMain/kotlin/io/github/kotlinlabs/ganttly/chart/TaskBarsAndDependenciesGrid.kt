@@ -7,18 +7,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
@@ -41,11 +32,11 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.kotlinlabs.ganttly.models.GanttTask
 import io.github.kotlinlabs.ganttly.models.TaskHoverInfo
 import io.github.kotlinlabs.ganttly.models.TimelineViewInfo
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
-import io.github.kotlinlabs.ganttly.models.GanttTask
 import kotlinx.datetime.until
 import kotlin.math.PI
 import kotlin.math.cos
@@ -123,14 +114,17 @@ fun TaskBarsAndDependenciesGrid(
 
                                 if (hoveredTask != null) {
                                     println("Hovering over task: ${hoveredTask.name}")
-                                    onTaskHover(TaskHoverInfo(
-                                        taskId = hoveredTask.id,
-                                        position = position
-                                    ))
+                                    onTaskHover(
+                                        TaskHoverInfo(
+                                            taskId = hoveredTask.id,
+                                            position = position
+                                        )
+                                    )
                                 } else {
                                     onTaskHover(null)
                                 }
                             }
+
                             PointerEventType.Exit -> {
                                 pointerPositionState.value = null
                                 onTaskHover(null)
@@ -187,7 +181,8 @@ fun TaskBarsAndDependenciesGrid(
                             )
 
                             val taskX = (taskStartOffsetSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
-                            val taskWidthPx = (task.duration.inWholeSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
+                            val taskWidthPx =
+                                (task.duration.inWholeSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
 
                             // Draw task bar
                             drawTaskBar(
@@ -222,7 +217,8 @@ fun TaskBarsAndDependenciesGrid(
 
                                 if (parentTaskIndex != -1 &&
                                     parentTaskIndex >= firstVisibleItemIndex &&
-                                    parentTaskIndex <= lastVisibleItemIndex) {
+                                    parentTaskIndex <= lastVisibleItemIndex
+                                ) {
 
                                     val parentTask = tasks[parentTaskIndex]
                                     val parentItemInfo = visibleItemInfo.find { it.index == parentTaskIndex }
@@ -243,7 +239,8 @@ fun TaskBarsAndDependenciesGrid(
 
                                         // Parent task bottom Y
                                         val barHeight = rowHeightPx * 0.7f
-                                        val parentTaskBottomY = parentTaskTopY + (rowHeightPx - barHeight) / 2 + barHeight
+                                        val parentTaskBottomY =
+                                            parentTaskTopY + (rowHeightPx - barHeight) / 2 + barHeight
 
                                         // Current (dependent) task's center start
                                         val currentTaskStartX = (timelineViewInfo.viewStartDate.until(
@@ -316,7 +313,8 @@ fun findTaskAtPosition(
             if (position.x >= taskX &&
                 position.x <= taskX + taskWidthPx &&
                 position.y >= barTopY &&
-                position.y <= barTopY + barHeight) {
+                position.y <= barTopY + barHeight
+            ) {
                 return task
             }
         }

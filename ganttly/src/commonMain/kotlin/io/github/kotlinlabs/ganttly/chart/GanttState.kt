@@ -100,12 +100,6 @@ class GanttChartState(
         )
     }
 
-    fun updateVisibleDateRange(start: Instant, end: Instant) {
-        // Add validation: end > start, constrain to project boundaries or allow free pan
-        viewStartDate = start
-        viewEndDate = end
-    }
-
     fun fitTasksToView() {
         viewStartDate = projectStartDate
         viewEndDate = projectEndDate

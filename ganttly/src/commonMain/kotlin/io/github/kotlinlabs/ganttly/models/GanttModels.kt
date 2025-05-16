@@ -20,11 +20,6 @@ data class GanttTask(
         // Max duration: 24 hours (can be adjusted)
         require(duration.inWholeHours <= 24) { "Task duration cannot exceed 24 hours." }
     }
-
-    // Helper properties for convenience if needed elsewhere, though calculations should use 'duration'
-    val durationInSeconds: Long get() = duration.inWholeSeconds
-    val durationInMinutes: Long get() = duration.inWholeMinutes
-    val durationInHours: Long get() = duration.inWholeHours
 }
 
 // Represents a single unit in the timeline header
@@ -43,10 +38,3 @@ data class TimelineViewInfo(
     val pixelsPerSecond: Double, // Determines zoom level. How many pixels represent one second.
     val headerCells: List<TimelineHeaderCell> // Pre-calculated header cells
 )
-
-// Enum to define the primary unit for timeline scaling
-enum class TimeScaleDisplayUnit {
-    SECONDS, // Show individual seconds, or groups of seconds
-    MINUTES, // Show individual minutes, or groups of minutes (e.g., 5, 10, 15, 30 min intervals)
-    HOURS    // Show individual hours
-}
