@@ -132,10 +132,15 @@ fun TaskBarsAndDependenciesGrid(
         // Use the shared LazyListState for synchronized scrolling
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = true,
         ) {
-            itemsIndexed(tasks, key = { _, task -> task.id }) { index, task ->
-                // This creates the row backgrounds that will be scrolled by the LazyColumn
+            items(
+                count = tasks.size,
+                key = { index -> tasks[index].id }
+            ) { index ->
+                val task = tasks[index]
+                // Create row background
                 Box(
                     modifier = Modifier
                         .fillParentMaxWidth()
@@ -143,7 +148,7 @@ fun TaskBarsAndDependenciesGrid(
                         .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                 )
 
-                // Store task vertical positions for use in dependency arrows
+                // Store positions
                 val taskTopY = index * rowHeightPx
                 taskVerticalPositions[task.id] = taskTopY + rowHeightPx / 2
             }

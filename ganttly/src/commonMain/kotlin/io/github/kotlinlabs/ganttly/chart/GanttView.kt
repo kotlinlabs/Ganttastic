@@ -13,6 +13,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,8 +46,32 @@ fun GanttChartView(
     var hoveredTaskInfo by remember { mutableStateOf<TaskHoverInfo?>(null) }
     val hoverDebouncer = remember { Debouncer(hoverDelay) }
 
-    // Create a shared LazyListState for synchronized scrolling
-    val sharedListState = rememberLazyListState()
+    // Create separate scroll states for each component
+    val taskListState = rememberLazyListState()
+    val chartGridState = rememberLazyListState()
+
+    // Synchronize the two scroll states
+    LaunchedEffect(taskListState) {
+        snapshotFlow { taskListState.firstVisibleItemIndex to taskListState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                // When taskList scrolls, update the chart grid
+                if (chartGridState.firstVisibleItemIndex != index ||
+                    chartGridState.firstVisibleItemScrollOffset != offset) {
+                    chartGridState.scrollToItem(index, offset)
+                }
+            }
+    }
+
+    LaunchedEffect(chartGridState) {
+        snapshotFlow { chartGridState.firstVisibleItemIndex to chartGridState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                // When chart grid scrolls, update the taskList
+                if (taskListState.firstVisibleItemIndex != index ||
+                    taskListState.firstVisibleItemScrollOffset != offset) {
+                    taskListState.scrollToItem(index, offset)
+                }
+            }
+    }
 
     Row(modifier = modifier.fillMaxSize()) {
         if (showTaskList) {
@@ -52,15 +80,15 @@ fun GanttChartView(
                 width = taskListWidth,
                 rowHeight = rowHeight,
                 headerHeight = headerHeight,
-                listState = sharedListState,  // Pass the shared state
+                listState = taskListState, // Use separate state
                 modifier = Modifier.fillMaxHeight()
             )
-        }
 
-        HorizontalDivider(
-            modifier = Modifier.fillMaxHeight().width(1.dp)
-                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
-        )
+            HorizontalDivider(
+                modifier = Modifier.fillMaxHeight().width(1.dp)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -73,7 +101,7 @@ fun GanttChartView(
                 rowHeight = rowHeight,
                 headerHeight = headerHeight,
                 hoveredTaskInfo = hoveredTaskInfo,
-                listState = sharedListState,  // Pass the shared state
+                listState = chartGridState, // Use separate state
                 onTaskHover = { taskInfo ->
                     if (taskInfo != null) {
                         hoverDebouncer.debounce {
@@ -87,7 +115,7 @@ fun GanttChartView(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Draw the tooltip - it will position itself based on viewport
+            // Draw the tooltip
             hoveredTaskInfo?.let { info ->
                 TaskTooltip(
                     task = state.tasks.first { it.id == info.taskId },
@@ -105,11 +133,11 @@ fun TaskListPanel(
     width: Dp,
     rowHeight: Dp,
     headerHeight: Dp,
-    listState: LazyListState,  // Add the shared list state parameter
+    listState: LazyListState,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.width(width)) {
-        // Add this header placeholder to align with timeline header
+        // Header box - fixed at the top
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -118,24 +146,36 @@ fun TaskListPanel(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                "Tasks", // Or any other appropriate header text
+                "Tasks",
                 style = MaterialTheme.typography.labelSmall
             )
         }
 
-        // Use the shared list state for synchronized scrolling
-        LazyColumn(
-            state = listState,  // Use the shared list state
-            modifier = Modifier.fillMaxWidth()
+        // This Box will contain the scrollable content
+        // Use weight(1f) to ensure it takes all remaining space
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f) // <-- This is crucial
         ) {
-            itemsIndexed(tasks) { _, task ->
-                TaskNameCell(
-                    taskName = task.name,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(rowHeight)
-                        .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                )
+            // LazyColumn needs to fill its parent container
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(
+                    count = tasks.size,
+                    key = { index -> tasks[index].id }
+                ) { index ->
+                    val task = tasks[index]
+                    TaskNameCell(
+                        taskName = task.name,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(rowHeight)
+                            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                    )
+                }
             }
         }
     }
@@ -160,7 +200,7 @@ fun TimelinePanel(
     rowHeight: Dp,
     headerHeight: Dp,
     hoveredTaskInfo: TaskHoverInfo?,
-    listState: LazyListState,  // Add the shared list state parameter
+    listState: LazyListState,
     onTaskHover: (TaskHoverInfo?) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -171,21 +211,29 @@ fun TimelinePanel(
             state.chartWidthPx = newSize.width.toFloat()
         }
     ) {
+        // Fixed header
         SimpleTimelineHeader(
             timelineViewInfo = timelineViewInfo,
             headerHeight = headerHeight,
             modifier = Modifier.fillMaxWidth()
         )
 
-        TaskBarsAndDependenciesGrid(
-            tasks = state.tasks,
-            timelineViewInfo = timelineViewInfo,
-            rowHeight = rowHeight,
-            hoveredTaskInfo = hoveredTaskInfo,
-            listState = listState,  // Use the shared list state
-            onTaskHover = onTaskHover,
-            modifier = Modifier.weight(1f).fillMaxWidth()
-        )
+        // Scrollable content
+        Box(
+            modifier = Modifier
+                .weight(1f) // <-- This is crucial
+                .fillMaxWidth()
+        ) {
+            TaskBarsAndDependenciesGrid(
+                tasks = state.tasks,
+                timelineViewInfo = timelineViewInfo,
+                rowHeight = rowHeight,
+                hoveredTaskInfo = hoveredTaskInfo,
+                listState = listState,
+                onTaskHover = onTaskHover,
+                modifier = Modifier.fillMaxSize() // <-- Use fillMaxSize to fill parent
+            )
+        }
     }
 }
 
