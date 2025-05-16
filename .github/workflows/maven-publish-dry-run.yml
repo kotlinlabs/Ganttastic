@@ -47,7 +47,7 @@ jobs:
           echo "" >> gradle.properties
           echo "signing.password=${{ secrets.ORG_GRADLE_PROJECT_signingInMemoryKeyPassword }}" >> gradle.properties
           echo "" >> gradle.properties
-          echo "signing.secretKeyRingFile=secring.gpg" >> gradle.properties
+          echo "signing.secretKeyRingFile=../secring.gpg" >> gradle.properties
 
       # Set up environment variables (for Sonatype credentials)
       - name: Set environment variables
