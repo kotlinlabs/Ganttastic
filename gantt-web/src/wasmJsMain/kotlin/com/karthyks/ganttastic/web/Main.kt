@@ -11,14 +11,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.CanvasBasedWindow
 import io.github.kotlinlabs.ganttly.chart.GanttChartView
-import io.github.kotlinlabs.ganttly.chart.createSampleGanttState
-import io.github.kotlinlabs.ganttly.chart.createSampleNestedGanttState
+import io.github.kotlinlabs.ganttly.createLargeGanttStateDemo
 import io.github.kotlinlabs.ganttly.styles.ganttTheme
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     CanvasBasedWindow("Ganttastic", canvasElementId = "ganttasticCanvas") {
-        val ganttState = remember { createSampleNestedGanttState() }
+        val ganttState = remember { createLargeGanttStateDemo() }
 
         val customTheme = ganttTheme {
             naming {
