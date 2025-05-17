@@ -24,7 +24,7 @@ A modern Gantt chart implementation using Compose Multiplatform, targeting Wasm/
 ```kotlin
 // In your build.gradle.kts
 dependencies {
-    implementation("io.github.kotlinlabs:ganttly:1.0.0")
+    implementation("io.github.kotlinlabs:ganttly:$version")
 }
 ```
 
