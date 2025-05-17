@@ -172,14 +172,14 @@ fun createSampleGanttState(): GanttChartState {
     val tasks = listOf(
         // Phase 1 - Planning & Research
         GanttTask(
-            "1", "1. Project Planning",
+            "1", "Project Planning",
             taskStartBaseline,
             duration = 2.hours,
             progress = 1.0f,
             group = "Planning"
         ),
         GanttTask(
-            "2", "2. Requirements Analysis",
+            "2", "Requirements Analysis",
             taskStartBaseline.plus(2.hours),
             duration = 3.hours,
             progress = 0.9f,
@@ -187,7 +187,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Planning"
         ),
         GanttTask(
-            "3", "3. Market Research",
+            "3", "Market Research",
             taskStartBaseline.plus(3.hours),
             duration = 4.hours,
             progress = 0.8f,
@@ -195,7 +195,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Planning"
         ),
         GanttTask(
-            "4", "4. Stakeholder Meeting",
+            "4", "Stakeholder Meeting",
             taskStartBaseline.plus(5.hours),
             duration = 1.hours + 30.minutes,
             progress = 1.0f,
@@ -205,7 +205,7 @@ fun createSampleGanttState(): GanttChartState {
 
         // Phase 2 - Design
         GanttTask(
-            "5", "5. Architecture Design",
+            "5", "Architecture Design",
             taskStartBaseline.plus(7.hours),
             duration = 5.hours,
             progress = 0.7f,
@@ -213,7 +213,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Design"
         ),
         GanttTask(
-            "6", "6. UI/UX Design",
+            "6", "UI/UX Design",
             taskStartBaseline.plus(8.hours),
             duration = 6.hours,
             progress = 0.65f,
@@ -221,7 +221,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Design"
         ),
         GanttTask(
-            "7", "7. Database Schema",
+            "7", "Database Schema",
             taskStartBaseline.plus(10.hours),
             duration = 3.hours,
             progress = 0.6f,
@@ -229,7 +229,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Design"
         ),
         GanttTask(
-            "8", "8. Design Review",
+            "8", "Design Review",
             taskStartBaseline.plus(14.hours),
             duration = 2.hours,
             progress = 0.5f,
@@ -239,7 +239,7 @@ fun createSampleGanttState(): GanttChartState {
 
         // Phase 3 - Development
         GanttTask(
-            "9", "9. Backend Development",
+            "9", "Backend Development",
             taskStartBaseline.plus(16.hours),
             duration = 8.hours,
             progress = 0.4f,
@@ -247,7 +247,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Development"
         ),
         GanttTask(
-            "10", "10. Frontend Development",
+            "10", "Frontend Development",
             taskStartBaseline.plus(17.hours),
             duration = 7.hours,
             progress = 0.35f,
@@ -255,7 +255,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Development"
         ),
         GanttTask(
-            "11", "11. API Integration",
+            "11", "API Integration",
             taskStartBaseline.plus(24.hours),
             duration = 4.hours,
             progress = 0.3f,
@@ -263,7 +263,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Development"
         ),
         GanttTask(
-            "12", "12. Performance Optimization",
+            "12", "Performance Optimization",
             taskStartBaseline.plus(28.hours),
             duration = 3.hours,
             progress = 0.2f,
@@ -273,7 +273,7 @@ fun createSampleGanttState(): GanttChartState {
 
         // Phase 4 - Testing
         GanttTask(
-            "13", "13. Unit Testing",
+            "13", "Unit Testing",
             taskStartBaseline.plus(31.hours),
             duration = 4.hours,
             progress = 0.15f,
@@ -281,7 +281,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Testing"
         ),
         GanttTask(
-            "14", "14. Integration Testing",
+            "14", "Integration Testing",
             taskStartBaseline.plus(35.hours),
             duration = 5.hours,
             progress = 0.1f,
@@ -289,7 +289,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Testing"
         ),
         GanttTask(
-            "15", "15. User Acceptance Testing",
+            "15", "User Acceptance Testing",
             taskStartBaseline.plus(40.hours),
             duration = 6.hours,
             progress = 0.05f,
@@ -299,7 +299,7 @@ fun createSampleGanttState(): GanttChartState {
 
         // Phase 5 - Deployment & Documentation
         GanttTask(
-            "16", "16. Deployment Planning",
+            "16", "Deployment Planning",
             taskStartBaseline.plus(38.hours),
             duration = 3.hours,
             progress = 0.3f,
@@ -307,7 +307,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Deployment"
         ),
         GanttTask(
-            "17", "17. Documentation",
+            "17", "Documentation",
             taskStartBaseline.plus(39.hours),
             duration = 8.hours,
             progress = 0.2f,
@@ -315,7 +315,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Documentation"
         ),
         GanttTask(
-            "18", "18. Deployment to Staging",
+            "18", "Deployment to Staging",
             taskStartBaseline.plus(46.hours),
             duration = 2.hours,
             progress = 0.0f,
@@ -323,7 +323,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Deployment"
         ),
         GanttTask(
-            "19", "19. Final Review",
+            "19", "Final Review",
             taskStartBaseline.plus(48.hours),
             duration = 2.hours,
             progress = 0.0f,
@@ -331,7 +331,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Documentation"
         ),
         GanttTask(
-            "20", "20. Production Deployment",
+            "20", "Production Deployment",
             taskStartBaseline.plus(50.hours),
             duration = 3.hours,
             progress = 0.0f,
@@ -341,7 +341,7 @@ fun createSampleGanttState(): GanttChartState {
 
         // Phase 6 - Post-Deployment
         GanttTask(
-            "21", "21. Post-Deploy Verification",
+            "21", "Post-Deploy Verification",
             taskStartBaseline.plus(53.hours),
             duration = 2.hours,
             progress = 0.0f,
@@ -349,7 +349,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Deployment"
         ),
         GanttTask(
-            "22", "22. Performance Monitoring",
+            "22", "Performance Monitoring",
             taskStartBaseline.plus(55.hours),
             duration = 4.hours,
             progress = 0.0f,
@@ -357,7 +357,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Maintenance"
         ),
         GanttTask(
-            "23", "23. Feedback Collection",
+            "23", "Feedback Collection",
             taskStartBaseline.plus(56.hours),
             duration = 6.hours,
             progress = 0.0f,
@@ -367,7 +367,7 @@ fun createSampleGanttState(): GanttChartState {
 
         // Phase 7 - Maintenance
         GanttTask(
-            "24", "24. Hotfix Planning",
+            "24", "Hotfix Planning",
             taskStartBaseline.plus(59.hours),
             duration = 2.hours,
             progress = 0.0f,
@@ -375,7 +375,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Maintenance"
         ),
         GanttTask(
-            "25", "25. Bug Fix Implementation",
+            "25", "Bug Fix Implementation",
             taskStartBaseline.plus(61.hours),
             duration = 5.hours,
             progress = 0.0f,
@@ -383,7 +383,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Maintenance"
         ),
         GanttTask(
-            "26", "26. Regression Testing",
+            "26", "Regression Testing",
             taskStartBaseline.plus(66.hours),
             duration = 3.hours,
             progress = 0.0f,
@@ -393,7 +393,7 @@ fun createSampleGanttState(): GanttChartState {
 
         // Phase 8 - Enhancements
         GanttTask(
-            "27", "27. Enhancement Planning",
+            "27", "Enhancement Planning",
             taskStartBaseline.plus(64.hours),
             duration = 4.hours,
             progress = 0.0f,
@@ -401,7 +401,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Planning"
         ),
         GanttTask(
-            "28", "28. Feature Development",
+            "28", "Feature Development",
             taskStartBaseline.plus(69.hours),
             duration = 8.hours,
             progress = 0.0f,
@@ -409,7 +409,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Development"
         ),
         GanttTask(
-            "29", "29. Security Audit",
+            "29", "Security Audit",
             taskStartBaseline.plus(72.hours),
             duration = 5.hours,
             progress = 0.0f,
@@ -417,7 +417,7 @@ fun createSampleGanttState(): GanttChartState {
             group = "Testing"
         ),
         GanttTask(
-            "30", "30. Version 2.0 Release",
+            "30", "Version 2.0 Release",
             taskStartBaseline.plus(77.hours),
             duration = 2.hours,
             progress = 0.0f,
