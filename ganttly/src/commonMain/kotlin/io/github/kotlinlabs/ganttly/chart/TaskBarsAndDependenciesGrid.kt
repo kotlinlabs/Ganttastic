@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import io.github.kotlinlabs.ganttly.models.GanttTask
 import io.github.kotlinlabs.ganttly.models.TaskHoverInfo
 import io.github.kotlinlabs.ganttly.models.TimelineViewInfo
+import io.github.kotlinlabs.ganttly.styles.GanttTheme
+import io.github.kotlinlabs.ganttly.styles.GanttThemeConfig
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.until
@@ -52,6 +54,8 @@ fun TaskBarsAndDependenciesGrid(
     onTaskHover: (TaskHoverInfo?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val theme: GanttThemeConfig = GanttTheme.current
+
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val rowHeightPx = with(density) { rowHeight.toPx() }
@@ -195,7 +199,8 @@ fun TaskBarsAndDependenciesGrid(
                                 textMeasurer = textMeasurer,
                                 textStyle = taskTextStyle,
                                 chartWidthPx = chartWidthPx,
-                                isHovered = hoveredTaskInfo?.taskId == task.id
+                                isHovered = hoveredTaskInfo?.taskId == task.id,
+                                theme = theme,
                             )
                         }
                     }
@@ -257,8 +262,7 @@ fun TaskBarsAndDependenciesGrid(
                                             endX = currentTaskStartX,
                                             endY = currentTaskCenterY,
                                             arrowColor = arrowColor,
-                                            strokeWidth = 2.0f.dp.value,
-                                            arrowHeadSize = 7.0f.dp.value
+                                            theme = theme,
                                         )
                                     }
                                 }
@@ -333,18 +337,19 @@ fun drawTaskBar(
     textMeasurer: TextMeasurer,
     textStyle: TextStyle,
     chartWidthPx: Float,
-    isHovered: Boolean = false
+    isHovered: Boolean = false,
+    theme: GanttThemeConfig
 ) {
     drawScope.apply {
-        val barHeight = rowHeightPx * 0.7f // Make bar slightly smaller than row
+        // Use theme values for calculations
+        val barHeight = rowHeightPx * theme.styles.taskBarHeight
         val barTopY = taskTopY + (rowHeightPx - barHeight) / 2
-        val cornerRadius = CornerRadius(barHeight * 0.2f)
+        val cornerRadius = CornerRadius(barHeight * theme.styles.taskBarCornerRadius)
 
-        val backgroundColor = if (isHovered) {
-            task.color.copy(alpha = 0.5f) // Higher opacity when hovered
-        } else {
-            task.color.copy(alpha = 0.3f) // Normal transparency
-        }
+        // Get colors from theme
+        val backgroundColor = theme.colors.taskBarBackground(task.color, isHovered)
+        val borderColor = theme.colors.taskBarBorder(task.color, isHovered)
+        val progressColor = theme.colors.taskBarProgress(task.color, isHovered)
 
         val borderWidth = if (isHovered) 1.5.dp.toPx() else 1.dp.toPx()
 
@@ -360,7 +365,7 @@ fun drawTaskBar(
 
         // Draw main bar background
         drawRoundRect(
-            color = backgroundColor, // Lighter background
+            color = backgroundColor,
             topLeft = Offset(taskX, barTopY),
             size = Size(taskWidthPx, barHeight),
             cornerRadius = cornerRadius
@@ -369,11 +374,6 @@ fun drawTaskBar(
         // Draw progress fill
         if (task.progress > 0f) {
             val progressWidth = taskWidthPx * task.progress.coerceIn(0f, 1f)
-            val progressColor = if (isHovered) {
-                task.color.copy(alpha = 0.9f) // More vibrant when hovered
-            } else {
-                task.color
-            }
 
             drawRoundRect(
                 color = progressColor,
@@ -383,19 +383,17 @@ fun drawTaskBar(
             )
         }
 
-
         // Draw border with hover effect
         drawRoundRect(
-            color = task.color,
+            color = borderColor,
             topLeft = Offset(taskX, barTopY),
             size = Size(taskWidthPx, barHeight),
             cornerRadius = cornerRadius,
             style = Stroke(width = borderWidth)
         )
 
-
         // Task Name Text Placement
-        val paddingPx = 4.dp.toPx()
+        val paddingPx = theme.styles.taskBarTextPadding.toPx()
         val textLayoutResult = textMeasurer.measure(task.name, style = textStyle)
         val textWidth = textLayoutResult.size.width
         val textHeight = textLayoutResult.size.height
@@ -449,45 +447,43 @@ fun DrawScope.drawDependencyArrow(
     endX: Float,
     endY: Float,
     arrowColor: Color,
-    strokeWidth: Float = 2.0f.dp.value,
-    arrowHeadSize: Float = 7.0f.dp.value
+    theme: GanttThemeConfig
 ) {
     val path = Path()
-
-    // Always start from the beginning point
     path.moveTo(startX, startY)
-
-    // Vertical line down/up to the end Y coordinate
     path.lineTo(startX, endY)
-
-    // Horizontal line directly to the end point
     path.lineTo(endX, endY)
+
+    // Get theme values
+    val lineColor = theme.colors.dependencyArrowColor(arrowColor)
+    val strokeWidth = theme.styles.dependencyArrowWidth.toPx()
+    val arrowHeadSize = theme.styles.dependencyArrowHeadSize.toPx()
+    val cornerRadius = theme.styles.dependencyArrowCornerRadius.toPx()
 
     // Draw the path with rounded corner at the elbow
     drawPath(
         path = path,
-        color = arrowColor,
+        color = lineColor,
         style = Stroke(
             width = strokeWidth,
-            pathEffect = PathEffect.cornerPathEffect(4.dp.toPx())
+            pathEffect = PathEffect.cornerPathEffect(cornerRadius)
         )
     )
 
-    // Draw arrowhead - pointing horizontally from left to right
-    val arrowAngle = 0.0 // Horizontal angle (in radians)
-
+    // Draw arrowhead
+    val arrowAngle = 0.0 // Horizontal angle
     val arrowPath = Path().apply {
         moveTo(endX, endY)
         lineTo(
             endX - arrowHeadSize * cos(arrowAngle - PI / 6).toFloat(),
             endY - arrowHeadSize * sin(arrowAngle - PI / 6).toFloat()
         )
-        moveTo(endX, endY) // Go back to the tip
+        moveTo(endX, endY)
         lineTo(
             endX - arrowHeadSize * cos(arrowAngle + PI / 6).toFloat(),
             endY - arrowHeadSize * sin(arrowAngle + PI / 6).toFloat()
         )
     }
 
-    drawPath(arrowPath, color = arrowColor, style = Stroke(width = strokeWidth))
+    drawPath(arrowPath, color = lineColor, style = Stroke(width = strokeWidth))
 }

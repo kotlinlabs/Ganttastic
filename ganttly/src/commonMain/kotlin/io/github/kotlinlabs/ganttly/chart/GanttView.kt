@@ -1,10 +1,6 @@
 package io.github.kotlinlabs.ganttly.chart
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -19,7 +15,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,13 +24,15 @@ import io.github.kotlinlabs.ganttly.models.Debouncer
 import io.github.kotlinlabs.ganttly.models.GanttTask
 import io.github.kotlinlabs.ganttly.models.TaskHoverInfo
 import io.github.kotlinlabs.ganttly.models.TimelineViewInfo
+import io.github.kotlinlabs.ganttly.styles.GanttTheme
+import io.github.kotlinlabs.ganttly.styles.GanttThemeConfig
+import io.github.kotlinlabs.ganttly.styles.ProvideGanttTheme
+import io.github.kotlinlabs.ganttly.styles.TaskGroupColorCoordinator
 
 
 const val DEFAULT_TASK_LIST_WIDTH_DP = 220
 const val DEFAULT_ROW_HEIGHT_DP = 36 // Slightly smaller for more tasks
 const val DEFAULT_HEADER_HEIGHT_DP = 40
-
-const val DEFAULT_HEADER_EXPANDED_HEIGHT_DP = 300
 
 @Composable
 fun GanttChartView(
@@ -47,156 +44,169 @@ fun GanttChartView(
     showTaskList: Boolean = true,
     hoverDelay: Long = 150,
     headerContent: @Composable (() -> Unit)? = null,
-    headerMaxHeight: Dp = DEFAULT_HEADER_EXPANDED_HEIGHT_DP.dp
+    ganttTheme: GanttThemeConfig = GanttTheme.current
 ) {
-    // Add hover state
-    var hoveredTaskInfo by remember { mutableStateOf<TaskHoverInfo?>(null) }
-    val hoverDebouncer = remember { Debouncer(hoverDelay) }
+    ProvideGanttTheme(ganttTheme) {
+        val currentThemeColors = GanttTheme.current.colors
 
-    // Create separate scroll states for each component
-    val taskListState = rememberLazyListState()
-    val chartGridState = rememberLazyListState()
+        // Apply theme colors whenever the theme changes
+        LaunchedEffect(currentThemeColors) {
+            // Reset the color coordinator when theme changes
+            TaskGroupColorCoordinator.reset()
 
-    // Calculate header visibility based on scroll position
-    val headerCollapseFraction by remember {
-        derivedStateOf {
-            val firstVisibleItemIndex = chartGridState.firstVisibleItemIndex
-            val firstVisibleItemOffset = chartGridState.firstVisibleItemScrollOffset
+            // Apply the new theme colors to the tasks
+            state.applyThemeColors(currentThemeColors)
+        }
 
-            if (firstVisibleItemIndex == 0) {
-                val collapseTresholdPx = 200f
-                (firstVisibleItemOffset / collapseTresholdPx).coerceIn(0f, 1f)
-            } else {
-                1.0f
+        // Add hover state
+        var hoveredTaskInfo by remember { mutableStateOf<TaskHoverInfo?>(null) }
+        val hoverDebouncer = remember { Debouncer(hoverDelay) }
+
+        // Create separate scroll states for each component
+        val taskListState = rememberLazyListState()
+        val chartGridState = rememberLazyListState()
+
+        // Calculate header visibility based on scroll position
+        val headerCollapseFraction by remember {
+            derivedStateOf {
+                val firstVisibleItemIndex = chartGridState.firstVisibleItemIndex
+                val firstVisibleItemOffset = chartGridState.firstVisibleItemScrollOffset
+
+                if (firstVisibleItemIndex == 0) {
+                    val collapseTresholdPx = 200f
+                    (firstVisibleItemOffset / collapseTresholdPx).coerceIn(0f, 1f)
+                } else {
+                    1.0f
+                }
             }
         }
-    }
 
-    // Synchronize the two scroll states
-    LaunchedEffect(taskListState) {
-        snapshotFlow { taskListState.firstVisibleItemIndex to taskListState.firstVisibleItemScrollOffset }
-            .collect { (index, offset) ->
-                // When taskList scrolls, update the chart grid
-                if (chartGridState.firstVisibleItemIndex != index ||
-                    chartGridState.firstVisibleItemScrollOffset != offset
-                ) {
-                    chartGridState.scrollToItem(index, offset)
-                }
-            }
-    }
-
-    LaunchedEffect(chartGridState) {
-        snapshotFlow { chartGridState.firstVisibleItemIndex to chartGridState.firstVisibleItemScrollOffset }
-            .collect { (index, offset) ->
-                // When chart grid scrolls, update the taskList
-                if (taskListState.firstVisibleItemIndex != index ||
-                    taskListState.firstVisibleItemScrollOffset != offset
-                ) {
-                    taskListState.scrollToItem(index, offset)
-                }
-            }
-    }
-
-    Column(modifier = modifier.fillMaxSize()) {
-        // Header row with both headers side by side, using measured height
-        AnimatedVisibility(
-            visible = headerCollapseFraction < 1f,
-            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Left side: Project info content
-                headerContent?.let { content ->
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .weight(0.6f)
-                            .wrapContentHeight()
+        // Synchronize the two scroll states
+        LaunchedEffect(taskListState) {
+            snapshotFlow { taskListState.firstVisibleItemIndex to taskListState.firstVisibleItemScrollOffset }
+                .collect { (index, offset) ->
+                    // When taskList scrolls, update the chart grid
+                    if (chartGridState.firstVisibleItemIndex != index ||
+                        chartGridState.firstVisibleItemScrollOffset != offset
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .wrapContentHeight()
-                        ) {
-                            content()
-                        }
+                        chartGridState.scrollToItem(index, offset)
                     }
                 }
-
-                // Right side: Group info header
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .weight(if (headerContent != null) 0.4f else 1f)
-                        .wrapContentHeight()
-                ) {
-                    GroupInfoHeader(
-                        groupInfo = state.getGroupInfo(),
-                        taskCountProvider = { group -> state.tasks.count { it.group == group } }
-                    )
-                }
-            }
         }
 
-        // Main chart area
-        Row(modifier = Modifier.weight(1f)) {
-            if (showTaskList) {
-                TaskListPanel(
-                    tasks = state.tasks,
-                    width = taskListWidth,
-                    rowHeight = rowHeight,
-                    headerHeight = headerHeight,
-                    listState = taskListState,
-                    modifier = Modifier.fillMaxHeight()
-                )
+        LaunchedEffect(chartGridState) {
+            snapshotFlow { chartGridState.firstVisibleItemIndex to chartGridState.firstVisibleItemScrollOffset }
+                .collect { (index, offset) ->
+                    // When chart grid scrolls, update the taskList
+                    if (taskListState.firstVisibleItemIndex != index ||
+                        taskListState.firstVisibleItemScrollOffset != offset
+                    ) {
+                        taskListState.scrollToItem(index, offset)
+                    }
+                }
+        }
 
-                HorizontalDivider(
-                    modifier = Modifier.fillMaxHeight().width(1.dp)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
-                )
+        Column(modifier = modifier.fillMaxSize()) {
+            // Header row with both headers side by side, using measured height
+            AnimatedVisibility(
+                visible = headerCollapseFraction < 1f,
+                enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+                exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Left side: Project info content
+                    headerContent?.let { content ->
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .weight(0.6f)
+                                .wrapContentHeight()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .wrapContentHeight()
+                            ) {
+                                content()
+                            }
+                        }
+                    }
+
+                    // Right side: Group info header
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(if (headerContent != null) 0.4f else 1f)
+                            .wrapContentHeight()
+                    ) {
+                        GroupInfoHeader(
+                            groupInfo = state.getGroupInfo(),
+                            taskCountProvider = { group -> state.tasks.count { it.group == group } }
+                        )
+                    }
+                }
             }
 
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            ) {
-                // Draw the chart content
-                TimelinePanel(
-                    state = state,
-                    rowHeight = rowHeight,
-                    headerHeight = headerHeight,
-                    hoveredTaskInfo = hoveredTaskInfo,
-                    listState = chartGridState,
-                    onTaskHover = { taskInfo ->
-                        if (taskInfo != null) {
-                            hoverDebouncer.debounce {
-                                hoveredTaskInfo = taskInfo
-                            }
-                        } else {
-                            hoverDebouncer.cancel()
-                            hoveredTaskInfo = null
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                // Draw the tooltip
-                hoveredTaskInfo?.let { info ->
-                    TaskTooltip(
-                        task = state.tasks.first { it.id == info.taskId },
-                        position = info.position,
-                        allTasks = state.tasks,
-                        layoutInfo = chartGridState.layoutInfo
+            // Main chart area
+            Row(modifier = Modifier.weight(1f)) {
+                if (showTaskList) {
+                    TaskListPanel(
+                        tasks = state.tasks,
+                        width = taskListWidth,
+                        rowHeight = rowHeight,
+                        headerHeight = headerHeight,
+                        listState = taskListState,
+                        modifier = Modifier.fillMaxHeight()
                     )
+
+                    HorizontalDivider(
+                        modifier = Modifier.fillMaxHeight().width(1.dp)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    // Draw the chart content
+                    TimelinePanel(
+                        state = state,
+                        rowHeight = rowHeight,
+                        headerHeight = headerHeight,
+                        hoveredTaskInfo = hoveredTaskInfo,
+                        listState = chartGridState,
+                        onTaskHover = { taskInfo ->
+                            if (taskInfo != null) {
+                                hoverDebouncer.debounce {
+                                    hoveredTaskInfo = taskInfo
+                                }
+                            } else {
+                                hoverDebouncer.cancel()
+                                hoveredTaskInfo = null
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // Draw the tooltip
+                    hoveredTaskInfo?.let { info ->
+                        TaskTooltip(
+                            task = state.tasks.first { it.id == info.taskId },
+                            position = info.position,
+                            allTasks = state.tasks,
+                            layoutInfo = chartGridState.layoutInfo
+                        )
+                    }
                 }
             }
         }
@@ -212,6 +222,7 @@ fun TaskListPanel(
     listState: LazyListState,
     modifier: Modifier = Modifier
 ) {
+    val theme = GanttTheme.current
     Column(modifier = modifier.width(width)) {
         // Header box - fixed at the top
         Box(
@@ -222,7 +233,7 @@ fun TaskListPanel(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                "Tasks",
+                theme.naming.taskListHeader,
                 style = MaterialTheme.typography.labelSmall
             )
         }
@@ -319,16 +330,19 @@ fun SimpleTimelineHeader(
     headerHeight: Dp,
     modifier: Modifier = Modifier
 ) {
+    val theme = GanttTheme.current
+    val borderColor = theme.colors.timelineHeaderBorderColor(MaterialTheme.colorScheme.outline)
     Box(
         modifier = modifier
             .height(headerHeight)
             .fillMaxWidth()
-            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            .border(theme.styles.timelineHeaderBorderWidth, borderColor)
     ) {
         // Start time label
         Text(
             text = timelineViewInfo.headerCells.firstOrNull()?.label ?: "",
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = 8.dp)
@@ -342,7 +356,7 @@ fun SimpleTimelineHeader(
         ) {
             Text(
                 text = "Total Duration - ${formatDuration(timelineViewInfo.totalViewDuration)}",
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
@@ -351,7 +365,8 @@ fun SimpleTimelineHeader(
         // End time label
         Text(
             text = timelineViewInfo.headerCells.lastOrNull()?.label ?: "",
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 8.dp)

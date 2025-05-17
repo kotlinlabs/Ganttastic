@@ -8,6 +8,8 @@ import androidx.compose.ui.graphics.Color
 import io.github.kotlinlabs.ganttly.models.GanttTask
 import io.github.kotlinlabs.ganttly.models.TimelineHeaderCell
 import io.github.kotlinlabs.ganttly.models.TimelineViewInfo
+import io.github.kotlinlabs.ganttly.styles.GanttColors
+import io.github.kotlinlabs.ganttly.styles.TaskGroupColorCoordinator
 import kotlinx.datetime.*
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -60,55 +62,47 @@ class GanttChartState(
     private val timeZone: TimeZone = TimeZone.currentSystemDefault()
 ) {
 
-    private val groupColorMap = mutableMapOf<String, Color>()
-
-    // Default color palette for groups
-    private val groupColorPalette = listOf(
-        Color(0xFF2196F3), // Blue
-        Color(0xFF4CAF50), // Green
-        Color(0xFFFF9800), // Orange
-        Color(0xFF9C27B0), // Purple
-        Color(0xFFE91E63), // Pink
-        Color(0xFF00BCD4), // Cyan
-        Color(0xFFFFEB3B), // Yellow
-        Color(0xFF795548), // Brown
-        Color(0xFF607D8B), // Blue Grey
-        Color(0xFFFF5722)  // Deep Orange
-    )
-
-    private val _tasks = mutableStateOf(assignGroupColors(initialTasks))
+    private val _originalTasks = mutableStateOf(initialTasks)
+    private val _tasks = mutableStateOf(initialTasks)
 
     var tasks: List<GanttTask>
         get() = _tasks.value
         set(value) {
-            _tasks.value = assignGroupColors(value)
+            _originalTasks.value = value
+            // We'll update the colors when the theme is available
         }
 
-    // Assigns colors to tasks based on their group
-    private fun assignGroupColors(taskList: List<GanttTask>): List<GanttTask> {
-        // First, collect all unique groups
-        val uniqueGroups = taskList.map { it.group }.filter { it.isNotEmpty() }.distinct()
 
-        // Assign colors to any new groups
-        uniqueGroups.forEach { group ->
-            if (!groupColorMap.containsKey(group)) {
-                // Assign a color from the palette based on the current size of the map
-                val colorIndex = groupColorMap.size % groupColorPalette.size
-                groupColorMap[group] = groupColorPalette[colorIndex]
-            }
-        }
+    /**
+     * Apply theme colors to tasks. This should be called whenever the theme changes.
+     */
+    fun applyThemeColors(themeColors: GanttColors) {
+        val originalTasks = _originalTasks.value
 
-        // Now update the tasks with group colors
-        return taskList.map { task ->
-            if (task.group.isNotEmpty() && groupColorMap.containsKey(task.group)) {
-                // Use the group color for this task
-                task.copy(color = groupColorMap[task.group]!!)
-            } else {
-                // Keep the task's original color if it doesn't have a group
-                task
-            }
+        // Extract all unique groups
+        val uniqueGroups = originalTasks
+            .mapNotNull { task -> task.group.ifEmpty { null } }
+            .distinct()
+
+        // Apply group colors to tasks
+        _tasks.value = originalTasks.map { task ->
+            TaskGroupColorCoordinator.applyGroupColorToTask(task, uniqueGroups, themeColors)
         }
     }
+
+    // Get a summary of groups and their colors - for the group info header
+    fun getGroupInfo(): Map<String, Color> {
+        val result = mutableMapOf<String, Color>()
+
+        tasks.forEach { task ->
+            if (task.group.isNotEmpty() && !result.containsKey(task.group)) {
+                result[task.group] = task.color
+            }
+        }
+
+        return result
+    }
+
 
 
     // The overall earliest start and latest end of all tasks
@@ -156,9 +150,6 @@ class GanttChartState(
         viewEndDate = projectEndDate
         // pixelsPerSecond will be recalculated by timelineViewInfo
     }
-
-    // Get a summary of groups and their colors
-    fun getGroupInfo(): Map<String, Color> = groupColorMap.toMap()
 
 
     // Add more methods to manipulate state, e.g., for panning, specific zooming

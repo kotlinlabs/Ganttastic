@@ -3,10 +3,8 @@ package io.github.kotlinlabs.ganttly.chart
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -16,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.kotlinlabs.ganttly.styles.GanttTheme
 
 /**
  * Displays group information as a header showing all task groups with their color indicators and counts.
@@ -30,13 +29,14 @@ fun GroupInfoHeader(
     taskCountProvider: (String) -> Int,
     modifier: Modifier = Modifier
 ) {
+    val theme = GanttTheme.current
     Column(
         modifier = modifier
             .padding(12.dp)
             .wrapContentHeight()
     ) {
         Text(
-            "Task Groups",
+            theme.naming.taskGroups,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -51,12 +51,12 @@ fun GroupInfoHeader(
                 groupInfo.forEach { (group, color) ->
                     Surface(
                         color = color.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp),
-                        border = BorderStroke(1.dp, color.copy(alpha = 0.3f))
+                        shape = RoundedCornerShape(theme.styles.groupTagShape),
+                        border = BorderStroke(theme.styles.groupTagBorderWidth, color.copy(alpha = 0.3f)),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = theme.styles.groupTagPadding, vertical = 4.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -87,7 +87,7 @@ fun GroupInfoHeader(
             }
         } else {
             Text(
-                "No task groups defined",
+                theme.naming.noGroupsMessage,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
