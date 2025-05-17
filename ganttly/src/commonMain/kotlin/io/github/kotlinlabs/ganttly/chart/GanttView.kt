@@ -3,6 +3,7 @@ package io.github.kotlinlabs.ganttly.chart
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -20,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.kotlinlabs.ganttly.chart.icons.ArrowDownIcon
+import io.github.kotlinlabs.ganttly.chart.icons.ArrowRightIcon
 import io.github.kotlinlabs.ganttly.models.Debouncer
 import io.github.kotlinlabs.ganttly.models.GanttTask
 import io.github.kotlinlabs.ganttly.models.TaskHoverInfo
@@ -164,8 +167,10 @@ fun GanttChartView(
                         rowHeight = rowHeight,
                         headerHeight = headerHeight,
                         listState = taskListState,
+                        onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
                         modifier = Modifier.fillMaxHeight()
                     )
+
 
                     HorizontalDivider(
                         modifier = Modifier.fillMaxHeight().width(1.dp)
@@ -220,6 +225,7 @@ fun TaskListPanel(
     rowHeight: Dp,
     headerHeight: Dp,
     listState: LazyListState,
+    onToggleTaskExpansion: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val theme = GanttTheme.current
@@ -239,13 +245,11 @@ fun TaskListPanel(
         }
 
         // This Box will contain the scrollable content
-        // Use weight(1f) to ensure it takes all remaining space
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // <-- This is crucial
+                .weight(1f)
         ) {
-            // LazyColumn needs to fill its parent container
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize()
@@ -256,7 +260,8 @@ fun TaskListPanel(
                 ) { index ->
                     val task = tasks[index]
                     TaskNameCell(
-                        taskName = task.name,
+                        task = task,
+                        onToggleExpand = onToggleTaskExpansion,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(rowHeight)
@@ -268,12 +273,54 @@ fun TaskListPanel(
     }
 }
 
+
 @Composable
-fun TaskNameCell(taskName: String, modifier: Modifier = Modifier) {
-    Box(modifier = modifier, contentAlignment = Alignment.CenterStart) {
+fun TaskNameCell(
+    task: GanttTask,
+    onToggleExpand: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val indentSize = 16.dp
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Indentation based on level
+        if (task.level > 0) {
+            Spacer(modifier = Modifier.width(indentSize * task.level))
+        }
+
+        // Expand/collapse icon (only for tasks with children)
+        if (task.hasChildren) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable { onToggleExpand(task.id) }
+                    .padding(2.dp)
+            ) {
+                if (task.isExpanded) {
+                    ArrowDownIcon(
+                        modifier = Modifier.matchParentSize(),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                } else {
+                    ArrowRightIcon(
+                        modifier = Modifier.matchParentSize(),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+        } else {
+            // Space for alignment if no children
+            Spacer(modifier = Modifier.width(20.dp))
+        }
+
+        // Task name
         Text(
-            taskName,
-            style = MaterialTheme.typography.bodySmall, // Smaller text for task list
+            text = task.name,
+            style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )

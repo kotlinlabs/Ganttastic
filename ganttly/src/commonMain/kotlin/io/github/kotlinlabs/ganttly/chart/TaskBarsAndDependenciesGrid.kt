@@ -180,22 +180,13 @@ fun TaskBarsAndDependenciesGrid(
                         if (itemInfo != null) {
                             val taskTopY = itemInfo.offset.toFloat()
 
-                            val taskStartOffsetSeconds = timelineViewInfo.viewStartDate.until(
-                                task.startDate, DateTimeUnit.SECOND, TimeZone.UTC
-                            )
-
-                            val taskX = (taskStartOffsetSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
-                            val taskWidthPx =
-                                (task.duration.inWholeSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
-
                             // Draw task bar
                             drawTaskBar(
                                 drawScope = this,
                                 task = task,
-                                taskX = taskX,
                                 taskTopY = taskTopY,
-                                taskWidthPx = taskWidthPx,
                                 rowHeightPx = rowHeightPx,
+                                timelineViewInfo = timelineViewInfo,
                                 textMeasurer = textMeasurer,
                                 textStyle = taskTextStyle,
                                 chartWidthPx = chartWidthPx,
@@ -330,26 +321,46 @@ fun findTaskAtPosition(
 fun drawTaskBar(
     drawScope: DrawScope,
     task: GanttTask,
-    taskX: Float,
     taskTopY: Float,
-    taskWidthPx: Float,
+    timelineViewInfo: TimelineViewInfo,
     rowHeightPx: Float,
     textMeasurer: TextMeasurer,
     textStyle: TextStyle,
     chartWidthPx: Float,
     isHovered: Boolean = false,
     theme: GanttThemeConfig
+
 ) {
+
     drawScope.apply {
+        // Use theme values for calculations
+        val taskStartOffsetSeconds = timelineViewInfo.viewStartDate.until(
+            task.startDate, DateTimeUnit.SECOND, TimeZone.UTC
+        )
+
+        val taskX = (taskStartOffsetSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
+        val taskWidthPx = (task.effectiveDuration.inWholeSeconds *
+                timelineViewInfo.pixelsPerSecond).toFloat()
+
+        // Rest of the drawing code remains the same...
         // Use theme values for calculations
         val barHeight = rowHeightPx * theme.styles.taskBarHeight
         val barTopY = taskTopY + (rowHeightPx - barHeight) / 2
-        val cornerRadius = CornerRadius(barHeight * theme.styles.taskBarCornerRadius)
+
+        // Use different styles for parent vs child tasks
+        val cornerRadius = if (task.hasChildren) {
+            // Parent tasks (more square)
+            CornerRadius(barHeight * 0.15f)
+        } else {
+            // Child tasks (more rounded)
+            CornerRadius(barHeight * theme.styles.taskBarCornerRadius)
+        }
 
         // Get colors from theme
         val backgroundColor = theme.colors.taskBarBackground(task.color, isHovered)
         val borderColor = theme.colors.taskBarBorder(task.color, isHovered)
         val progressColor = theme.colors.taskBarProgress(task.color, isHovered)
+
 
         val borderWidth = if (isHovered) 1.5.dp.toPx() else 1.dp.toPx()
 
@@ -486,4 +497,51 @@ fun DrawScope.drawDependencyArrow(
     }
 
     drawPath(arrowPath, color = lineColor, style = Stroke(width = strokeWidth))
+}
+
+fun DrawScope.drawParentChildConnectors(
+    parent: GanttTask,
+    children: List<GanttTask>,
+    timelineViewInfo: TimelineViewInfo,
+    rowPositions: Map<String, Float>, // Map of task IDs to Y positions
+    theme: GanttThemeConfig
+) {
+    if (children.isEmpty() || !parent.isExpanded) return
+
+    val lineColor = theme.colors.dependencyArrowColor(Color.Gray).copy(alpha = 0.3f)
+    val lineWidth = theme.styles.dependencyArrowWidth.toPx() * 0.5f
+
+    // Calculate parent's position
+    val parentStartX = (timelineViewInfo.viewStartDate.until(
+        parent.startDate, DateTimeUnit.SECOND, TimeZone.UTC
+    ) * timelineViewInfo.pixelsPerSecond).toFloat()
+
+    val parentY = rowPositions[parent.id] ?: return
+
+    // Draw connections to each child
+    children.forEach { child ->
+        val childY = rowPositions[child.id] ?: return@forEach
+
+        val childStartX = (timelineViewInfo.viewStartDate.until(
+            child.startDate, DateTimeUnit.SECOND, TimeZone.UTC
+        ) * timelineViewInfo.pixelsPerSecond).toFloat()
+
+        // Draw a subtle vertical line connecting parent to child
+        drawLine(
+            color = lineColor,
+            start = Offset(parentStartX, parentY),
+            end = Offset(parentStartX, childY),
+            strokeWidth = lineWidth,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f, 2f), 0f)
+        )
+
+        // Draw a subtle horizontal line from parent vertical line to child start
+        drawLine(
+            color = lineColor,
+            start = Offset(parentStartX, childY),
+            end = Offset(childStartX, childY),
+            strokeWidth = lineWidth,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f, 2f), 0f)
+        )
+    }
 }
