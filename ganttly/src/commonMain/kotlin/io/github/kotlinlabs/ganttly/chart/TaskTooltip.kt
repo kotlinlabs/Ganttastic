@@ -14,7 +14,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -57,7 +56,7 @@ fun TaskTooltip(
             }
 
             // Calculate Y position - show below unless there's not enough space
-            val yPos = if (position.y + ( 2 * tooltipHeight) + padding > availableHeight) {
+            val yPos = if (position.y + (2 * tooltipHeight) + padding > availableHeight) {
                 // Not enough space below, show above
                 (position.y - (tooltipHeight) - padding)
             } else {
@@ -141,7 +140,7 @@ fun TaskTooltip(
                         modifier = Modifier.padding(start = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        task.children.take(3).forEach { subtask ->
+                        task.children.forEach { subtask ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 CircleIcon(
                                     filled = subtask.progress >= 1.0f,
@@ -160,17 +159,6 @@ fun TaskTooltip(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
-                        }
-
-                        // If there are more subtasks than we're showing
-                        if (task.children.size > 3) {
-                            Text(
-                                text = "... and ${task.children.size - 3} more",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                fontStyle = FontStyle.Italic,
-                                modifier = Modifier.padding(start = 18.dp)
-                            )
                         }
                     }
                 }
