@@ -1,299 +1,198 @@
 package io.github.kotlinlabs.ganttly.chart
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import io.github.kotlinlabs.ganttly.chart.icons.CircleIcon
 import io.github.kotlinlabs.ganttly.models.GanttTask
-import io.github.kotlinlabs.ganttly.styles.GanttTheme
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration
-
 
 @Composable
 fun TaskTooltip(
     task: GanttTask,
     position: Offset,
     allTasks: List<GanttTask>,
-    layoutInfo: LazyListLayoutInfo? = null
+    layoutInfo: LazyListLayoutInfo
 ) {
-    val theme = GanttTheme.current
-    val tooltipWidth = 250.dp
-    val tooltipHeight = 120.dp
-    val tooltipSpacing = 12.dp // Space between cursor and tooltip
+    val subTaskCount = task.children.size
+    val subTasksComplete = task.children.count { it.progress >= 1.0f }
 
-    val density = LocalDensity.current
+    // Fixed size approximation for tooltip (can be refined)
+    val tooltipWidth = 300
+    val tooltipHeight = 250
+    val padding = 10
 
-    // Convert to pixels for calculations
-    val tooltipWidthPx = with(density) { tooltipWidth.toPx() }
-    val tooltipHeightPx = with(density) { tooltipHeight.toPx() }
-    val tooltipSpacingPx = with(density) { tooltipSpacing.toPx() }
+    // Calculate position - this is the critical part
+    // Calculate tooltip position using derivedStateOf
+    val tooltipPosition by remember(position, layoutInfo.viewportSize) {
+        derivedStateOf {
+            val availableWidth = layoutInfo.viewportSize.width
+            val availableHeight = layoutInfo.viewportSize.height
 
-    // Get header height (estimate if not available)
-    val headerHeightPx = with(density) { DEFAULT_HEADER_HEIGHT_DP.dp.toPx() }
+            // Calculate X position - show on right side unless there's not enough space
+            val xPos = if (position.x + (2 * tooltipWidth) + padding > availableWidth) {
+                // Not enough space to the right, show on left
+                (position.x - (tooltipWidth * 2) - padding)
+            } else {
+                // Show on right
+                position.x + padding
+            }
 
-    // Use the layout info to get actual viewport size
-    val viewportHeight = layoutInfo?.viewportSize?.height?.toFloat() ?: 600f
-    val viewportWidth = layoutInfo?.viewportEndOffset?.toFloat() ?: 1000f
+            // Calculate Y position - show below unless there's not enough space
+            val yPos = if (position.y + (2 * tooltipHeight) + padding > availableHeight) {
+                // Not enough space below, show above
+                (position.y - (tooltipHeight) - padding)
+            } else {
+                // Show below
+                position.y + padding
+            }
 
-    // Calculate tooltip position with smart placement
-    val tooltipPos = calculateTooltipPosition(
-        cursorPos = position,
-        tooltipWidthPx = tooltipWidthPx,
-        tooltipHeightPx = tooltipHeightPx,
-        spacingPx = tooltipSpacingPx,
-        headerHeightPx = headerHeightPx,
-        windowWidth = viewportWidth,
-        windowHeight = viewportHeight
-    )
-
-    val xPos = with(density) { tooltipPos.x.toDp() }
-    val yPos = with(density) { tooltipPos.y.toDp() }
-
-    // Format dates for display
-    val startTimeFormatted = formatTaskDate(task.startDate)
-    val endTimeFormatted = formatTaskDate(task.endDate)
-    val durationFormatted = formatDuration(task.duration, DurationFormatStyle.COMPACT)
-
-    // Get dependency tasks
-    val dependencyTasks = task.dependencies.mapNotNull { depId ->
-        allTasks.find { it.id == depId }
+            IntOffset(xPos.toInt(), yPos.toInt())
+        }
     }
 
-    Box(
-        modifier = Modifier
-            .width(tooltipWidth)
-            .absoluteOffset(x = xPos, y = yPos)
-            .background(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                shape = RoundedCornerShape(8.dp)
-            )
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(8.dp)
-            )
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(8.dp),
-                spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-            )
-            .padding(12.dp)
-            .zIndex(10f)
+    TooltipPopup(
+        position = IntOffset(tooltipPosition.x, tooltipPosition.y),
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Task name with color indicator
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+        Card(
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            ),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.widthIn(min = 200.dp, max = 300.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(task.color, shape = CircleShape)
-                        .border(0.5.dp, task.color.copy(alpha = 0.5f), shape = CircleShape)
-                )
-
-                Spacer(modifier = Modifier.width(6.dp))
-
+                // Task name
                 Text(
                     text = task.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
-            }
 
-            // Show the group if it exists
-            if (task.group.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                // Task details
+                Row {
                     Text(
-                        text = theme.naming.taskGroups,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        text = "Duration: ",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = formatDuration(task.duration),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                // Progress
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Progress: ",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    LinearProgressIndicator(
+                        progress = { task.progress },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 8.dp)
+                    )
+                    Text(
+                        text = " ${(task.progress * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                // Subtask info (if present)
+                if (task.hasChildren) {
+                    HorizontalDivider(
+                        Modifier.padding(vertical = 4.dp),
+                        DividerDefaults.Thickness,
+                        DividerDefaults.color
+                    )
+                    Text(
+                        text = "Subtasks: $subTasksComplete/$subTaskCount complete",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Surface(
-                        color = task.color.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(4.dp),
-                        border = BorderStroke(1.dp, task.color.copy(alpha = 0.3f)),
-                        modifier = Modifier.padding(horizontal = 4.dp)
+                    // Subtask breakdown
+                    Column(
+                        modifier = Modifier.padding(start = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text(
-                            text = task.group,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = task.color,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
+                        task.children.forEach { subtask ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircleIcon(
+                                    filled = subtask.progress >= 1.0f,
+                                    tint = if (subtask.progress >= 1.0f)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(14.dp)
+                                )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Time details
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                // Start time
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Start:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        text = startTimeFormatted,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // End time
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "End:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        text = endTimeFormatted,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Duration
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Duration:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                    Text(
-                        text = durationFormatted,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                // Progress bar
-                if (task.progress > 0f) {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Progress:",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        LinearProgressIndicator(
-                            progress = { task.progress },
-                            color = task.color,
-                            trackColor = task.color.copy(alpha = 0.2f),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(4.dp)
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Text(
-                            text = "${(task.progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = subtask.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
 
                 // Dependencies
-                if (dependencyTasks.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-
+                if (task.dependencies.isNotEmpty()) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = DividerDefaults.color
+                    )
                     Text(
                         text = "Dependencies:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
                     )
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // List at most 2 dependencies to keep tooltip compact
-                    Column {
-                        dependencyTasks.forEach { depTask ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .background(depTask.color, shape = CircleShape)
-                                )
-
-                                Spacer(modifier = Modifier.width(4.dp))
-
-                                Text(
-                                    text = depTask.name,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(start = 8.dp)
+                    ) {
+                        task.dependencies.forEach { depId ->
+                            val depTask = allTasks.firstOrNull { it.id == depId }
+                            if (depTask != null) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = depTask.name,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -303,50 +202,35 @@ fun TaskTooltip(
     }
 }
 
-// Helper function to format Instant to a readable date-time string
-fun formatTaskDate(instant: Instant): String {
-    val local = instant.toLocalDateTime(TimeZone.currentSystemDefault())
-    return "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}:${local.second.toString().padStart(2, '0')}"
-}
-
-// Helper function to calculate tooltip position
-private fun calculateTooltipPosition(
-    cursorPos: Offset,
-    tooltipWidthPx: Float,
-    tooltipHeightPx: Float,
-    spacingPx: Float,
-    headerHeightPx: Float,
-    windowWidth: Float,
-    windowHeight: Float
-): Offset {
-    // First try below the cursor
-    var xPos = cursorPos.x + spacingPx
-    var yPos = cursorPos.y + spacingPx
-
-    // Check if tooltip would extend beyond right edge
-    if (xPos + tooltipWidthPx > windowWidth) {
-        xPos = cursorPos.x - tooltipWidthPx - spacingPx
-    }
-
-    // Check if tooltip would extend beyond left edge
-    if (xPos < 0) {
-        xPos = 0f
-    }
-
-    // Check if tooltip would extend beyond bottom edge
-    if (yPos + tooltipHeightPx > windowHeight) {
-        // Try above the cursor instead
-        yPos = cursorPos.y - tooltipHeightPx - spacingPx
-
-        // If still not fitting (would go above header), position at right of cursor
-        if (yPos < headerHeightPx) {
-            // If we can't place it above, put it at the top of the view but below header
-            yPos = headerHeightPx + spacingPx
+@Composable
+private fun TooltipPopup(
+    position: IntOffset,
+    content: @Composable () -> Unit
+) {
+    Popup(
+        alignment = Alignment.TopStart,
+        offset = position,
+        onDismissRequest = { },
+        properties = PopupProperties(
+            focusable = false,
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+//            excludeFromSystemGesture = true
+        )
+    ) {
+        Box(
+            // Important: this ensures the popup doesn't interfere with mouse events
+            modifier = Modifier.semantics {
+                // Disable semantics entirely
+                contentDescription = ""
+                disabled()
+            }
+        ) {
+            content()
         }
     }
-
-    return Offset(xPos, yPos)
 }
+
 /**
  * Formats a duration into a human-readable format
  */
