@@ -1,8 +1,6 @@
 package com.karthyks.ganttastic.web
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.remember
@@ -29,11 +27,6 @@ fun main() {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
                                 .padding(16.dp)
                         ) {
                             Text(

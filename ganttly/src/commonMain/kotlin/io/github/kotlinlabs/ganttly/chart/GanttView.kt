@@ -1,23 +1,26 @@
 package io.github.kotlinlabs.ganttly.chart
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -32,7 +35,7 @@ const val DEFAULT_TASK_LIST_WIDTH_DP = 220
 const val DEFAULT_ROW_HEIGHT_DP = 36 // Slightly smaller for more tasks
 const val DEFAULT_HEADER_HEIGHT_DP = 40
 
-const val DEFAULT_HEADER_EXPANDED_HEIGHT_DP = 250
+const val DEFAULT_HEADER_EXPANDED_HEIGHT_DP = 300
 
 @Composable
 fun GanttChartView(
@@ -57,26 +60,16 @@ fun GanttChartView(
     // Calculate header visibility based on scroll position
     val headerCollapseFraction by remember {
         derivedStateOf {
-            // When first item is visible and not scrolled, header should be fully expanded (0.0f)
-            // As the first item scrolls up, header should collapse (towards 1.0f)
             val firstVisibleItemIndex = chartGridState.firstVisibleItemIndex
             val firstVisibleItemOffset = chartGridState.firstVisibleItemScrollOffset
 
             if (firstVisibleItemIndex == 0) {
-                // Map the scroll offset to a 0.0 - 1.0 range (0 = fully expanded, 1 = fully collapsed)
-                // Assuming we want to collapse over the first 200 pixels of scrolling
                 val collapseTresholdPx = 200f
                 (firstVisibleItemOffset / collapseTresholdPx).coerceIn(0f, 1f)
             } else {
-                // If we're past the first item, header is fully collapsed
                 1.0f
             }
         }
-    }
-
-    // Calculate the actual header height based on the collapse fraction
-    val headerCurrentHeight = with(LocalDensity.current) {
-        lerp(headerMaxHeight.toPx(), 0f, headerCollapseFraction).toDp()
     }
 
     // Synchronize the two scroll states
@@ -105,22 +98,51 @@ fun GanttChartView(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        // Collapsible header - only show if headerContent is provided
-        headerContent?.let {
-            Box(
+        // Header row with both headers side by side, using measured height
+        AnimatedVisibility(
+            visible = headerCollapseFraction < 1f,
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
+        ) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(headerCurrentHeight)
-                    .animateContentSize(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    )
-                    .alpha(1f - headerCollapseFraction) // Fade out as it collapses
+                    .wrapContentHeight()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Actually render the header content
-                headerContent()
+                // Left side: Project info content
+                headerContent?.let { content ->
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(0.6f)
+                            .wrapContentHeight()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .wrapContentHeight()
+                        ) {
+                            content()
+                        }
+                    }
+                }
+
+                // Right side: Group info header
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .weight(if (headerContent != null) 0.4f else 1f)
+                        .wrapContentHeight()
+                ) {
+                    GroupInfoHeader(
+                        groupInfo = state.getGroupInfo(),
+                        taskCountProvider = { group -> state.tasks.count { it.group == group } }
+                    )
+                }
             }
         }
 
@@ -179,12 +201,6 @@ fun GanttChartView(
             }
         }
     }
-}
-
-
-// Helper function to interpolate between two values based on a fraction
-private fun lerp(start: Float, end: Float, fraction: Float): Float {
-    return start + (end - start) * fraction
 }
 
 @Composable

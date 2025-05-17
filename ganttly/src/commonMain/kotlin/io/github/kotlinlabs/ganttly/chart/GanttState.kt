@@ -59,7 +59,57 @@ class GanttChartState(
     initialTasks: List<GanttTask>,
     private val timeZone: TimeZone = TimeZone.currentSystemDefault()
 ) {
-    var tasks by mutableStateOf(initialTasks)
+
+    private val groupColorMap = mutableMapOf<String, Color>()
+
+    // Default color palette for groups
+    private val groupColorPalette = listOf(
+        Color(0xFF2196F3), // Blue
+        Color(0xFF4CAF50), // Green
+        Color(0xFFFF9800), // Orange
+        Color(0xFF9C27B0), // Purple
+        Color(0xFFE91E63), // Pink
+        Color(0xFF00BCD4), // Cyan
+        Color(0xFFFFEB3B), // Yellow
+        Color(0xFF795548), // Brown
+        Color(0xFF607D8B), // Blue Grey
+        Color(0xFFFF5722)  // Deep Orange
+    )
+
+    private val _tasks = mutableStateOf(assignGroupColors(initialTasks))
+
+    var tasks: List<GanttTask>
+        get() = _tasks.value
+        set(value) {
+            _tasks.value = assignGroupColors(value)
+        }
+
+    // Assigns colors to tasks based on their group
+    private fun assignGroupColors(taskList: List<GanttTask>): List<GanttTask> {
+        // First, collect all unique groups
+        val uniqueGroups = taskList.map { it.group }.filter { it.isNotEmpty() }.distinct()
+
+        // Assign colors to any new groups
+        uniqueGroups.forEach { group ->
+            if (!groupColorMap.containsKey(group)) {
+                // Assign a color from the palette based on the current size of the map
+                val colorIndex = groupColorMap.size % groupColorPalette.size
+                groupColorMap[group] = groupColorPalette[colorIndex]
+            }
+        }
+
+        // Now update the tasks with group colors
+        return taskList.map { task ->
+            if (task.group.isNotEmpty() && groupColorMap.containsKey(task.group)) {
+                // Use the group color for this task
+                task.copy(color = groupColorMap[task.group]!!)
+            } else {
+                // Keep the task's original color if it doesn't have a group
+                task
+            }
+        }
+    }
+
 
     // The overall earliest start and latest end of all tasks
     private val projectStartDate by derivedStateOf { tasks.minOfOrNull { it.startDate } ?: Clock.System.now() }
@@ -73,6 +123,7 @@ class GanttChartState(
 
     // This will be set by the UI based on available width
     var chartWidthPx by mutableStateOf(0f)
+
 
     val timelineViewInfo by derivedStateOf {
         // Calculate the total duration from the earliest to the latest task
@@ -106,6 +157,10 @@ class GanttChartState(
         // pixelsPerSecond will be recalculated by timelineViewInfo
     }
 
+    // Get a summary of groups and their colors
+    fun getGroupInfo(): Map<String, Color> = groupColorMap.toMap()
+
+
     // Add more methods to manipulate state, e.g., for panning, specific zooming
     // For now, we fit all tasks.
     init {
@@ -122,21 +177,7 @@ fun createSampleGanttState(): GanttChartState {
         Instant.parse("${it.date}T${it.hour.toString().padStart(2, '0')}:00:00Z") // Start of current hour UTC
     }
 
-    // Using a color palette for tasks
-    val taskColors = listOf(
-        Color(0xFF2196F3), // Blue
-        Color(0xFF4CAF50), // Green
-        Color(0xFFFF9800), // Orange
-        Color(0xFF9C27B0), // Purple
-        Color(0xFFE91E63), // Pink
-        Color(0xFF00BCD4), // Cyan
-        Color(0xFFFFEB3B), // Yellow
-        Color(0xFF795548), // Brown
-        Color(0xFF607D8B), // Blue Grey
-        Color(0xFFFF5722)  // Deep Orange
-    )
-
-    // Create 30 tasks with dependencies
+    // Create 30 tasks with dependencies and groups
     val tasks = listOf(
         // Phase 1 - Planning & Research
         GanttTask(
@@ -144,7 +185,7 @@ fun createSampleGanttState(): GanttChartState {
             taskStartBaseline,
             duration = 2.hours,
             progress = 1.0f,
-            color = taskColors[0]
+            group = "Planning"
         ),
         GanttTask(
             "2", "2. Requirements Analysis",
@@ -152,7 +193,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 3.hours,
             progress = 0.9f,
             dependencies = listOf("1"),
-            color = taskColors[1]
+            group = "Planning"
         ),
         GanttTask(
             "3", "3. Market Research",
@@ -160,7 +201,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 4.hours,
             progress = 0.8f,
             dependencies = listOf("1"),
-            color = taskColors[2]
+            group = "Planning"
         ),
         GanttTask(
             "4", "4. Stakeholder Meeting",
@@ -168,7 +209,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 1.hours + 30.minutes,
             progress = 1.0f,
             dependencies = listOf("2", "3"),
-            color = taskColors[3]
+            group = "Planning"
         ),
 
         // Phase 2 - Design
@@ -178,7 +219,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 5.hours,
             progress = 0.7f,
             dependencies = listOf("4"),
-            color = taskColors[4]
+            group = "Design"
         ),
         GanttTask(
             "6", "6. UI/UX Design",
@@ -186,7 +227,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 6.hours,
             progress = 0.65f,
             dependencies = listOf("4"),
-            color = taskColors[5]
+            group = "Design"
         ),
         GanttTask(
             "7", "7. Database Schema",
@@ -194,7 +235,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 3.hours,
             progress = 0.6f,
             dependencies = listOf("5"),
-            color = taskColors[6]
+            group = "Design"
         ),
         GanttTask(
             "8", "8. Design Review",
@@ -202,7 +243,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 2.hours,
             progress = 0.5f,
             dependencies = listOf("5", "6", "7"),
-            color = taskColors[7]
+            group = "Design"
         ),
 
         // Phase 3 - Development
@@ -212,7 +253,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 8.hours,
             progress = 0.4f,
             dependencies = listOf("8"),
-            color = taskColors[8]
+            group = "Development"
         ),
         GanttTask(
             "10", "10. Frontend Development",
@@ -220,7 +261,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 7.hours,
             progress = 0.35f,
             dependencies = listOf("8"),
-            color = taskColors[9]
+            group = "Development"
         ),
         GanttTask(
             "11", "11. API Integration",
@@ -228,7 +269,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 4.hours,
             progress = 0.3f,
             dependencies = listOf("9"),
-            color = taskColors[0]
+            group = "Development"
         ),
         GanttTask(
             "12", "12. Performance Optimization",
@@ -236,7 +277,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 3.hours,
             progress = 0.2f,
             dependencies = listOf("11"),
-            color = taskColors[1]
+            group = "Development"
         ),
 
         // Phase 4 - Testing
@@ -246,7 +287,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 4.hours,
             progress = 0.15f,
             dependencies = listOf("12"),
-            color = taskColors[2]
+            group = "Testing"
         ),
         GanttTask(
             "14", "14. Integration Testing",
@@ -254,7 +295,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 5.hours,
             progress = 0.1f,
             dependencies = listOf("13"),
-            color = taskColors[3]
+            group = "Testing"
         ),
         GanttTask(
             "15", "15. User Acceptance Testing",
@@ -262,25 +303,25 @@ fun createSampleGanttState(): GanttChartState {
             duration = 6.hours,
             progress = 0.05f,
             dependencies = listOf("14"),
-            color = taskColors[4]
+            group = "Testing"
         ),
 
         // Phase 5 - Deployment & Documentation
         GanttTask(
             "16", "16. Deployment Planning",
-            taskStartBaseline.plus(38.hours), // Starts during testing
+            taskStartBaseline.plus(38.hours),
             duration = 3.hours,
             progress = 0.3f,
             dependencies = listOf("12"),
-            color = taskColors[5]
+            group = "Deployment"
         ),
         GanttTask(
             "17", "17. Documentation",
-            taskStartBaseline.plus(39.hours), // Overlaps with other tasks
+            taskStartBaseline.plus(39.hours),
             duration = 8.hours,
             progress = 0.2f,
             dependencies = listOf("12"),
-            color = taskColors[6]
+            group = "Documentation"
         ),
         GanttTask(
             "18", "18. Deployment to Staging",
@@ -288,7 +329,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 2.hours,
             progress = 0.0f,
             dependencies = listOf("15", "16"),
-            color = taskColors[7]
+            group = "Deployment"
         ),
         GanttTask(
             "19", "19. Final Review",
@@ -296,7 +337,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 2.hours,
             progress = 0.0f,
             dependencies = listOf("17", "18"),
-            color = taskColors[8]
+            group = "Documentation"
         ),
         GanttTask(
             "20", "20. Production Deployment",
@@ -304,7 +345,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 3.hours,
             progress = 0.0f,
             dependencies = listOf("19"),
-            color = taskColors[9]
+            group = "Deployment"
         ),
 
         // Phase 6 - Post-Deployment
@@ -314,7 +355,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 2.hours,
             progress = 0.0f,
             dependencies = listOf("20"),
-            color = taskColors[0]
+            group = "Deployment"
         ),
         GanttTask(
             "22", "22. Performance Monitoring",
@@ -322,7 +363,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 4.hours,
             progress = 0.0f,
             dependencies = listOf("21"),
-            color = taskColors[1]
+            group = "Maintenance"
         ),
         GanttTask(
             "23", "23. Feedback Collection",
@@ -330,7 +371,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 6.hours,
             progress = 0.0f,
             dependencies = listOf("20"),
-            color = taskColors[2]
+            group = "Maintenance"
         ),
 
         // Phase 7 - Maintenance
@@ -340,7 +381,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 2.hours,
             progress = 0.0f,
             dependencies = listOf("22", "23"),
-            color = taskColors[3]
+            group = "Maintenance"
         ),
         GanttTask(
             "25", "25. Bug Fix Implementation",
@@ -348,7 +389,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 5.hours,
             progress = 0.0f,
             dependencies = listOf("24"),
-            color = taskColors[4]
+            group = "Maintenance"
         ),
         GanttTask(
             "26", "26. Regression Testing",
@@ -356,17 +397,17 @@ fun createSampleGanttState(): GanttChartState {
             duration = 3.hours,
             progress = 0.0f,
             dependencies = listOf("25"),
-            color = taskColors[5]
+            group = "Testing"
         ),
 
         // Phase 8 - Enhancements
         GanttTask(
             "27", "27. Enhancement Planning",
-            taskStartBaseline.plus(64.hours), // Overlaps slightly with bug fixing
+            taskStartBaseline.plus(64.hours),
             duration = 4.hours,
             progress = 0.0f,
             dependencies = listOf("23"),
-            color = taskColors[6]
+            group = "Planning"
         ),
         GanttTask(
             "28", "28. Feature Development",
@@ -374,15 +415,15 @@ fun createSampleGanttState(): GanttChartState {
             duration = 8.hours,
             progress = 0.0f,
             dependencies = listOf("26", "27"),
-            color = taskColors[7]
+            group = "Development"
         ),
         GanttTask(
             "29", "29. Security Audit",
-            taskStartBaseline.plus(72.hours), // Runs in parallel with feature development
+            taskStartBaseline.plus(72.hours),
             duration = 5.hours,
             progress = 0.0f,
             dependencies = listOf("26"),
-            color = taskColors[8]
+            group = "Testing"
         ),
         GanttTask(
             "30", "30. Version 2.0 Release",
@@ -390,7 +431,7 @@ fun createSampleGanttState(): GanttChartState {
             duration = 2.hours,
             progress = 0.0f,
             dependencies = listOf("28", "29"),
-            color = taskColors[9]
+            group = "Deployment"
         )
     )
 

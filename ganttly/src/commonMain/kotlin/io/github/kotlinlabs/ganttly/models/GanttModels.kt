@@ -11,6 +11,7 @@ data class GanttTask(
     val duration: Duration, // Use kotlinx.time.Duration
     val progress: Float = 0f, // 0.0 to 1.0
     val dependencies: List<String> = emptyList(), // List of task IDs this task depends on
+    val group: String = "", // New group property
     val color: Color = Color(0xFF4CAF50) // Default task color
 ) {
     val endDate: Instant by lazy { startDate + duration }

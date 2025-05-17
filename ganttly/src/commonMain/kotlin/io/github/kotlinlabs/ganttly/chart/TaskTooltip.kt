@@ -1,5 +1,6 @@
 package io.github.kotlinlabs.ganttly.chart
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -8,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,16 +34,17 @@ fun TaskTooltip(
     task: GanttTask,
     position: Offset,
     allTasks: List<GanttTask>,
-    layoutInfo: LazyListLayoutInfo? = null // We'll use this to calculate positioning
+    layoutInfo: LazyListLayoutInfo? = null
 ) {
     val tooltipWidth = 250.dp
+    val tooltipHeight = 120.dp
     val tooltipSpacing = 12.dp // Space between cursor and tooltip
 
     val density = LocalDensity.current
 
     // Convert to pixels for calculations
     val tooltipWidthPx = with(density) { tooltipWidth.toPx() }
-    val tooltipHeightPx = 180f // Estimated height in pixels
+    val tooltipHeightPx = with(density) { tooltipHeight.toPx() }
     val tooltipSpacingPx = with(density) { tooltipSpacing.toPx() }
 
     // Get header height (estimate if not available)
@@ -94,7 +97,7 @@ fun TaskTooltip(
                 spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
             )
             .padding(12.dp)
-            .zIndex(10f) // Ensure tooltip is above other elements
+            .zIndex(10f)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Task name with color indicator
@@ -120,6 +123,39 @@ fun TaskTooltip(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            // Show the group if it exists
+            if (task.group.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Group:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Surface(
+                        color = task.color.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(1.dp, task.color.copy(alpha = 0.3f)),
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    ) {
+                        Text(
+                            text = task.group,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = task.color,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
