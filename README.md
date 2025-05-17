@@ -1,3 +1,4 @@
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.kotlinlabs/ganttly.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.kotlinlabs%22%20AND%20a:%22ganttly%22)
 # Ganttastic
 
 A modern Gantt chart implementation using Compose Multiplatform, targeting Wasm/JS with Kotlin.
@@ -6,12 +7,13 @@ A modern Gantt chart implementation using Compose Multiplatform, targeting Wasm/
 
 - Interactive Gantt chart visualization
 - Task dependencies with directional arrows
+- Collapsible children tasks
 - Customizable task colors and progress indicators
 - Interactive tooltips with task information
 
 ## Demo
 
-![Ganttastic Screenshot](docs/img.png)
+![Ganttastic Screenshot](docs/ganttly.gif)
 
 ## Getting Started
 
@@ -22,61 +24,122 @@ A modern Gantt chart implementation using Compose Multiplatform, targeting Wasm/
 ```kotlin
 // In your build.gradle.kts
 dependencies {
-    implementation("com.karthyks:ganttastic:1.0.0")
+    implementation("io.github.kotlinlabs:ganttly:$version")
 }
 ```
 
-```groovy
-// In your build.gradle
-dependencies {
-    implementation 'com.karthyks:ganttastic:1.0.0'
-}
-```
 ## Basic Usage
 ```kotlin
-// Create tasks
-val tasks = listOf(
-    Task(
-        id = "task1",
-        name = "Research",
-        startDate = LocalDate.parse("2023-05-01"),
-        endDate = LocalDate.parse("2023-05-10"),
-        progress = 0.8f,
-        color = Color.Blue
-    ),
-    Task(
-        id = "task2",
-        name = "Design",
-        startDate = LocalDate.parse("2023-05-11"),
-        endDate = LocalDate.parse("2023-05-20"),
-        progress = 0.5f,
-        color = Color.Green
-    ),
-    Task(
-        id = "task3",
-        name = "Implementation",
-        startDate = LocalDate.parse("2023-05-21"),
-        endDate = LocalDate.parse("2023-06-10"),
-        progress = 0.2f,
-        color = Color.Red
-    )
-)
+fun main() { 
+    CanvasBasedWindow("Ganttastic", canvasElementId = "ganttasticCanvas") {
+        val ganttState = remember { createSampleNestedGanttState() }
+        val customTheme = ganttTheme {
+            naming {
+                taskListHeader = "Jobs"
+                taskGroups = "Stage"
+                noGroupsMessage = "No stages found"
+            }
+        }
 
-// Define dependencies between tasks
-val dependencies = listOf(
-    Dependency(fromTaskId = "task1", toTaskId = "task2"),
-    Dependency(fromTaskId = "task2", toTaskId = "task3")
-)
+        GanttChartView(
+            state = ganttState,
+            headerContent = {
+                // Optional header content that collapses on scroll
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Text(
+                        "Project Timeline Overview",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
 
-// Render the Gantt chart
-GanttChart(
-    tasks = tasks,
-    dependencies = dependencies,
-    onTaskClick = { task -> 
-        println("Task clicked: ${task.name}")
+                    // Add your custom header content here
+                }
+            },
+            ganttTheme = customTheme
+        )
     }
-)
+}
 ```
+
+## Customizing the Theme
+
+```kotlin
+val customTheme = ganttTheme {
+    colors {
+        // Override default colors
+        taskBarBackground = { baseColor, isHovered -> 
+            if (isHovered) baseColor.copy(alpha = 0.8f) else baseColor.copy(alpha = 0.6f) 
+        }
+    }
+    styles {
+        // Customize dimensions and sizes
+        taskBarHeight = 0.7f
+        taskBarCornerRadius = 0.25f
+        dependencyArrowWidth = 1.5.dp
+    }
+    naming {
+        // Change text labels
+        taskListHeader = "Activities"
+        taskGroups = "Department"
+        noGroupsMessage = "No departments assigned"
+    }
+}
+```
+
+## Creating Task Hierarchies
+```kotlin
+val projectTask = GanttTask.createParentTask(
+    id = "project",
+    name = "Full Project",
+    startDate = now,
+    children = listOf(
+        // This is a nested parent task
+        GanttTask.createParentTask(
+            id = "phase1",
+            name = "Phase 1",
+            startDate = now,
+            children = listOf(
+                // Child tasks of Phase 1
+                GanttTask(
+                    id = "task1.1",
+                    name = "Task 1.1",
+                    startDate = now,
+                    duration = 2.hours,
+                    progress = 0.5f
+                ),
+                GanttTask(
+                    id = "task1.2",
+                    name = "Task 1.2",
+                    startDate = now.plus(2.hours),
+                    duration = 3.hours,
+                    progress = 0.3f
+                )
+            ),
+            progress = 0.4f
+        ),
+        // Another nested parent task
+        GanttTask.createParentTask(
+            id = "phase2",
+            name = "Phase 2",
+            startDate = now.plus(5.hours),
+            children = listOf(
+                // Child tasks of Phase 2
+                GanttTask(
+                    id = "task2.1",
+                    name = "Task 2.1",
+                    startDate = now.plus(5.hours),
+                    duration = 4.hours,
+                    progress = 0.0f
+                )
+            ),
+            progress = 0.0f
+        )
+    ),
+    progress = 0.2f
+)
+
+```
+
 ## Platform Support
 - Web (Wasm/JS)
 - Android (planned)
@@ -101,14 +164,15 @@ Please make sure to update tests as appropriate and adhere to the existing codin
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 ## Acknowledgments
-- Developed pairing with Jetbrains [Junie](https://www.jetbrains.com/junie/)
+- Developed pairing with Jetbrains IntelliJ IDEA - Community Edition [AI Assistance](https://www.jetbrains.com/ai-assistant/)
 
 ## Roadmap
 - [x] Publish library
+- [x] Implement hierarchical tasks with smooth animations
+- [x] Add collapsible project header
+- [ ] Add cool animations.
 - [ ] Implement critical path calculation
-- [ ] Add timeline zoom
-- [ ] Support for recurring tasks
 - [ ] Dark mode support
 
 ## Contact
-Project Link: [https://github.com/karthyks/ganttastic](https://github.com/karthyks/ganttastic)
+Project Link: [https://github.com/kotlinlabs/ganttastic](https://github.com/kotlinlabs/ganttastic)
