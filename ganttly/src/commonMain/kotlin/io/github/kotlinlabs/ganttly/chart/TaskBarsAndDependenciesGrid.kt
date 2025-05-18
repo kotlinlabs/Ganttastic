@@ -211,56 +211,65 @@ fun TaskBarsAndDependenciesGrid(
                                 // Find the parent task
                                 val parentTaskIndex = tasks.indexOfFirst { it.id == parentTaskId }
 
-                                if (parentTaskIndex != -1 &&
-                                    parentTaskIndex >= firstVisibleItemIndex &&
-                                    parentTaskIndex <= lastVisibleItemIndex
-                                ) {
-
+                                if (parentTaskIndex != -1) { // Only check if parent exists, not if it's visible
                                     val parentTask = tasks[parentTaskIndex]
-                                    val parentItemInfo = visibleItemInfo.find { it.index == parentTaskIndex }
 
-                                    if (parentItemInfo != null) {
-                                        val parentTaskTopY = parentItemInfo.offset.toFloat()
-
-                                        // Calculate X coordinates
-                                        val parentTaskStartX = (timelineViewInfo.viewStartDate.until(
-                                            parentTask.startDate, DateTimeUnit.SECOND, TimeZone.UTC
-                                        ) * timelineViewInfo.pixelsPerSecond).toFloat()
-
-                                        val parentTaskWidthPx = (parentTask.duration.inWholeSeconds *
-                                                timelineViewInfo.pixelsPerSecond).toFloat()
-
-                                        // Parent task bottom center X
-                                        val parentTaskBottomCenterX = parentTaskStartX + (parentTaskWidthPx / 2)
-
-                                        // Parent task bottom Y
-                                        val barHeight = rowHeightPx * 0.7f
-                                        val parentTaskBottomY =
-                                            parentTaskTopY + (rowHeightPx - barHeight) / 2 + barHeight
-
-                                        // Current (dependent) task's center start
-                                        val currentTaskStartX = (timelineViewInfo.viewStartDate.until(
-                                            currentTask.startDate, DateTimeUnit.SECOND, TimeZone.UTC
-                                        ) * timelineViewInfo.pixelsPerSecond).toFloat()
-
-                                        // Current task center Y
-                                        val currentTaskCenterY = currentTaskTopY + (rowHeightPx / 2)
-
-                                        // Draw arrow from parent's bottom center to current task's center start
-                                        drawDependencyArrow(
-                                            startX = parentTaskBottomCenterX,
-                                            startY = parentTaskBottomY,
-                                            endX = currentTaskStartX,
-                                            endY = currentTaskCenterY,
-                                            arrowColor = arrowColor,
-                                            theme = theme,
-                                        )
+                                    // Calculate parent task position regardless of visibility
+                                    val parentTaskTopY = if (parentTaskIndex >= firstVisibleItemIndex &&
+                                        parentTaskIndex <= lastVisibleItemIndex) {
+                                        // Parent is visible, get actual position
+                                        val parentItemInfo = visibleItemInfo.find { it.index == parentTaskIndex }
+                                        parentItemInfo?.offset?.toFloat() ?: 0f
+                                    } else {
+                                        // Parent is not visible, calculate position relative to view
+                                        if (parentTaskIndex < firstVisibleItemIndex) {
+                                            // Parent is above the visible area
+                                            0f - ((firstVisibleItemIndex - parentTaskIndex) * rowHeightPx)
+                                        } else {
+                                            // Parent is below the visible area
+                                            size.height + ((parentTaskIndex - lastVisibleItemIndex) * rowHeightPx)
+                                        }
                                     }
+
+                                    // Calculate X coordinates
+                                    val parentTaskStartX = (timelineViewInfo.viewStartDate.until(
+                                        parentTask.startDate, DateTimeUnit.SECOND, TimeZone.UTC
+                                    ) * timelineViewInfo.pixelsPerSecond).toFloat()
+
+                                    val parentTaskWidthPx = (parentTask.duration.inWholeSeconds *
+                                            timelineViewInfo.pixelsPerSecond).toFloat()
+
+                                    // Parent task bottom center X
+                                    val parentTaskBottomCenterX = parentTaskStartX + (parentTaskWidthPx / 2)
+
+                                    // Parent task bottom Y
+                                    val barHeight = rowHeightPx * 0.7f
+                                    val parentTaskBottomY =
+                                        parentTaskTopY + (rowHeightPx - barHeight) / 2 + barHeight
+
+                                    // Current (dependent) task's center start
+                                    val currentTaskStartX = (timelineViewInfo.viewStartDate.until(
+                                        currentTask.startDate, DateTimeUnit.SECOND, TimeZone.UTC
+                                    ) * timelineViewInfo.pixelsPerSecond).toFloat()
+
+                                    // Current task center Y
+                                    val currentTaskCenterY = currentTaskTopY + (rowHeightPx / 2)
+
+                                    // Draw arrow from parent's bottom center to current task's center start
+                                    drawDependencyArrow(
+                                        startX = parentTaskBottomCenterX,
+                                        startY = parentTaskBottomY,
+                                        endX = currentTaskStartX,
+                                        endY = currentTaskCenterY,
+                                        arrowColor = arrowColor,
+                                        theme = theme,
+                                    )
                                 }
                             }
                         }
                     }
                 }
+
             }
         }
     }
