@@ -94,27 +94,51 @@ fun GanttChartView(
             }
         }
 
-        // Synchronize the two scroll states
-        LaunchedEffect(taskListState) {
+        // Variables to prevent infinite scroll sync loops
+        val isTaskListScrolling = remember { mutableStateOf(false) }
+        val isChartGridScrolling = remember { mutableStateOf(false) }
+
+        // Synchronize the two scroll states with loop prevention
+        LaunchedEffect(Unit) {
             snapshotFlow { taskListState.firstVisibleItemIndex to taskListState.firstVisibleItemScrollOffset }
                 .collect { (index, offset) ->
-                    // When taskList scrolls, update the chart grid
-                    if (chartGridState.firstVisibleItemIndex != index ||
-                        chartGridState.firstVisibleItemScrollOffset != offset
-                    ) {
-                        chartGridState.scrollToItem(index, offset)
+                    // Only synchronize if this is not a response to a chart grid scroll
+                    if (!isChartGridScrolling.value) {
+                        // Signal that task list is controlling the scroll
+                        isTaskListScrolling.value = true
+
+                        // When taskList scrolls, update the chart grid
+                        if (chartGridState.firstVisibleItemIndex != index ||
+                            chartGridState.firstVisibleItemScrollOffset != offset
+                        ) {
+                            chartGridState.scrollToItem(index, offset)
+                        }
+
+                        // Reset the flag after a small delay
+                        kotlinx.coroutines.delay(50)
+                        isTaskListScrolling.value = false
                     }
                 }
         }
 
-        LaunchedEffect(chartGridState) {
+        LaunchedEffect(Unit) {
             snapshotFlow { chartGridState.firstVisibleItemIndex to chartGridState.firstVisibleItemScrollOffset }
                 .collect { (index, offset) ->
-                    // When chart grid scrolls, update the taskList
-                    if (taskListState.firstVisibleItemIndex != index ||
-                        taskListState.firstVisibleItemScrollOffset != offset
-                    ) {
-                        taskListState.scrollToItem(index, offset)
+                    // Only synchronize if this is not a response to a task list scroll
+                    if (!isTaskListScrolling.value) {
+                        // Signal that chart grid is controlling the scroll
+                        isChartGridScrolling.value = true
+
+                        // When chart grid scrolls, update the taskList
+                        if (taskListState.firstVisibleItemIndex != index ||
+                            taskListState.firstVisibleItemScrollOffset != offset
+                        ) {
+                            taskListState.scrollToItem(index, offset)
+                        }
+
+                        // Reset the flag after a small delay
+                        kotlinx.coroutines.delay(50)
+                        isChartGridScrolling.value = false
                     }
                 }
         }
@@ -181,7 +205,6 @@ fun GanttChartView(
                         modifier = Modifier.fillMaxHeight().testTag(taskListTestTag)
                     )
 
-
                     HorizontalDivider(
                         modifier = Modifier.fillMaxHeight().width(1.dp)
                             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
@@ -228,6 +251,7 @@ fun GanttChartView(
         }
     }
 }
+
 
 @Composable
 fun TaskListPanel(
