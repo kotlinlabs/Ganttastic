@@ -24,6 +24,7 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -54,6 +55,9 @@ fun TaskBarsAndDependenciesGrid(
     onToggleTaskExpansion: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Add test tags for UI testing
+    val taskGridTestTag = "task_bars_and_dependencies_grid"
+    val taskGridListTestTag = "task_grid_list"
     val theme: GanttThemeConfig = GanttTheme.current
 
     val textMeasurer = rememberTextMeasurer()
@@ -99,6 +103,7 @@ fun TaskBarsAndDependenciesGrid(
     Box(
         modifier = modifier
             .clipToBounds()
+            .testTag(taskGridTestTag)
             .onSizeChanged { size ->
                 chartWidthPx = size.width.toFloat()
             }
@@ -171,7 +176,7 @@ fun TaskBarsAndDependenciesGrid(
         // Use the shared LazyListState for synchronized scrolling
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().testTag(taskGridListTestTag),
             userScrollEnabled = true,
         ) {
             items(
@@ -185,6 +190,7 @@ fun TaskBarsAndDependenciesGrid(
                         .fillParentMaxWidth()
                         .height(rowHeight)
                         .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                        .testTag("task_bar_row_${task.id}")
                 )
 
                 // Store positions
@@ -445,33 +451,33 @@ fun drawTaskBar(
 
         // Prepare text content
         val taskName = task.name
-        
+
         // Prepare text content - for parent tasks, we'll leave space for the indicator
         val indicator = if (task.hasChildren) {
             if (task.isExpanded) "-" else "+"
         } else null
-        
+
         // Measure the text and indicator (if present)
         val textLayoutResult = textMeasurer.measure(taskName, style = textStyle)
         val textHeight = textLayoutResult.size.height
         val textWidth = textLayoutResult.size.width.toFloat()
-        
+
         // Additional width needed for indicator
         val indicatorWidth = if (indicator != null) {
             val indicatorStyle = textStyle.copy(fontSize = textStyle.fontSize * 1.5f)
             val indicatorLayoutResult = textMeasurer.measure(indicator, style = indicatorStyle)
             indicatorLayoutResult.size.width.toFloat() + taskBarTextPaddingPx
         } else 0f
-        
+
         // Available width for text inside the bar (accounting for padding and indicator)
         val availableWidthInside = taskWidthPx - (2 * taskBarTextPaddingPx) - indicatorWidth
-        
+
         // Space available to the left of the task bar (be cautious of edge cases)
         val availableWidthLeft = taskX - taskBarTextPaddingPx
-        
+
         // Space available to the right of the task bar
         val availableWidthRight = chartWidthPx - (taskX + taskWidthPx) - taskBarTextPaddingPx
-        
+
         // Determine text placement strategy
         val textPlacement = when {
             // Strategy 1: Inside the bar if it fits with padding
@@ -482,14 +488,14 @@ fun drawTaskBar(
 
             // Strategy 3: Left of the bar if it fits
             textWidth + indicatorWidth <= availableWidthLeft -> TextPlacement.LEFT
-            
+
             // Strategy 4: Default to inside with truncation
             else -> TextPlacement.INSIDE_CENTERED
         }
-        
+
         // Calculate text position based on placement strategy
         val textY = barTopY + (barHeight - textHeight) / 2
-        
+
         val textX = when (textPlacement) {
             TextPlacement.INSIDE_CENTERED -> {
                 // Center text inside bar
@@ -510,21 +516,21 @@ fun drawTaskBar(
             textLayoutResult = textLayoutResult,
             topLeft = Offset(textX, textY)
         )
-        
+
         // Draw expansion indicator (+ or -) for parent tasks
         if (indicator != null) {
             val indicatorStyle = textStyle.copy(
                 fontSize = textStyle.fontSize * 2.0f  // Make it 100% larger
             )
-            
+
             val indicatorLayoutResult = textMeasurer.measure(indicator, style = indicatorStyle)
             val indicatorHeight = indicatorLayoutResult.size.height
-            
 
-            
+
+
             // Center vertically
             val indicatorY = barTopY + (barHeight - indicatorHeight) / 2
-            
+
             // Draw the indicator
             drawText(
                 textLayoutResult = indicatorLayoutResult,

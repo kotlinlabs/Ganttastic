@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -64,6 +65,11 @@ fun GanttChartView(
             // Apply the new theme colors to the tasks
             state.applyThemeColors(currentThemeColors)
         }
+
+        // Define test tags for UI testing
+        val ganttChartTestTag = "gantt_chart_view"
+        val taskListTestTag = "task_list_panel"
+        val timelinePanelTestTag = "timeline_panel"
 
         // Add hover state
         var hoveredTaskInfo by remember { mutableStateOf<TaskHoverInfo?>(null) }
@@ -113,7 +119,7 @@ fun GanttChartView(
                 }
         }
 
-        Column(modifier = modifier.fillMaxSize()) {
+        Column(modifier = modifier.fillMaxSize().testTag(ganttChartTestTag)) {
             // Header row with both headers side by side, using measured height
             AnimatedVisibility(
                 visible = headerCollapseFraction < 1f,
@@ -172,7 +178,7 @@ fun GanttChartView(
                         headerHeight = headerHeight,
                         listState = taskListState,
                         onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
-                        modifier = Modifier.fillMaxHeight()
+                        modifier = Modifier.fillMaxHeight().testTag(taskListTestTag)
                     )
 
 
@@ -205,7 +211,7 @@ fun GanttChartView(
                             }
                         },
                         onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize().testTag(timelinePanelTestTag)
                     )
 
                     // Draw the tooltip
@@ -285,10 +291,12 @@ fun TaskNameCell(
     onToggleExpand: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Add test tag for UI testing
+    val taskCellTestTag = "task_cell_${task.id}"
     val indentSize = 16.dp
 
     Row(
-        modifier = modifier,
+        modifier = modifier.testTag(taskCellTestTag),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Indentation based on level
@@ -385,6 +393,8 @@ fun SimpleTimelineHeader(
     headerHeight: Dp,
     modifier: Modifier = Modifier
 ) {
+    // Add test tag for UI testing
+    val timelineHeaderTestTag = "timeline_header"
     val theme = GanttTheme.current
     val borderColor = theme.colors.timelineHeaderBorderColor(MaterialTheme.colorScheme.outline)
     Box(
@@ -392,6 +402,7 @@ fun SimpleTimelineHeader(
             .height(headerHeight)
             .fillMaxWidth()
             .border(theme.styles.timelineHeaderBorderWidth, borderColor)
+            .testTag(timelineHeaderTestTag)
     ) {
         // Start time label
         Text(

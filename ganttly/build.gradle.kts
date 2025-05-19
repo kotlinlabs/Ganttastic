@@ -41,17 +41,22 @@ kotlin {
 
 
     sourceSets {
-        val commonMain by getting {
-            val composeBom = project.dependencies.platform(libs.androidx.compose.bom)
-            dependencies {
-                implementation(composeBom)
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
-                implementation(compose.components.resources)
-                implementation(libs.kotlinx.datetime)
-            }
+        val composeBom = project.dependencies.platform(libs.androidx.compose.bom)
+        commonMain.dependencies {
+            implementation(composeBom)
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material3)
+            @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+            implementation(compose.components.resources)
+            implementation(libs.kotlinx.datetime)
+        }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+
+            @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+            implementation(compose.uiTest)
         }
     }
 
