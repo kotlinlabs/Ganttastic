@@ -581,7 +581,7 @@ fun DrawScope.drawDependencyArrow(
     drawPath(arrowPath, color = lineColor, style = Stroke(width = strokeWidth))
 }
 
-    parent: GanttTask,
+
 // Enum for text placement strategies
 private enum class TextPlacement {
     INSIDE_CENTERED,  // Inside the bar, centered
