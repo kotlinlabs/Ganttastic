@@ -1,5 +1,6 @@
 package io.github.kotlinlabs.ganttly.chart
 
+import TaskBarsAndDependenciesGrid
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,6 +32,9 @@ import io.github.kotlinlabs.ganttly.styles.GanttTheme
 import io.github.kotlinlabs.ganttly.styles.GanttThemeConfig
 import io.github.kotlinlabs.ganttly.styles.ProvideGanttTheme
 import io.github.kotlinlabs.ganttly.styles.TaskGroupColorCoordinator
+import io.github.kotlinlabs.ganttly.chart.formatDuration
+import io.github.kotlinlabs.ganttly.chart.DurationFormatStyle
+import kotlin.time.Duration
 
 
 const val DEFAULT_TASK_LIST_WIDTH_DP = 220
@@ -200,6 +204,7 @@ fun GanttChartView(
                                 hoveredTaskInfo = null
                             }
                         },
+                        onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
                         modifier = Modifier.fillMaxSize()
                     )
 
@@ -336,6 +341,7 @@ fun TimelinePanel(
     hoveredTaskInfo: TaskHoverInfo?,
     listState: LazyListState,
     onTaskHover: (TaskHoverInfo?) -> Unit,
+    onToggleTaskExpansion: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val timelineViewInfo = state.timelineViewInfo
@@ -355,7 +361,7 @@ fun TimelinePanel(
         // Scrollable content
         Box(
             modifier = Modifier
-                .weight(1f) // <-- This is crucial
+                .weight(1f)
                 .fillMaxWidth()
         ) {
             TaskBarsAndDependenciesGrid(
@@ -365,11 +371,13 @@ fun TimelinePanel(
                 hoveredTaskInfo = hoveredTaskInfo,
                 listState = listState,
                 onTaskHover = onTaskHover,
-                modifier = Modifier.fillMaxSize() // <-- Use fillMaxSize to fill parent
+                onToggleTaskExpansion = onToggleTaskExpansion, // Pass the toggle function from parameter
+                modifier = Modifier.fillMaxSize()
             )
         }
     }
 }
+
 
 @Composable
 fun SimpleTimelineHeader(

@@ -1,5 +1,3 @@
-package io.github.kotlinlabs.ganttly.chart
-
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -29,6 +27,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -52,6 +51,7 @@ fun TaskBarsAndDependenciesGrid(
     hoveredTaskInfo: TaskHoverInfo?,
     listState: LazyListState,
     onTaskHover: (TaskHoverInfo?) -> Unit,
+    onToggleTaskExpansion: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val theme: GanttThemeConfig = GanttTheme.current
@@ -66,10 +66,26 @@ fun TaskBarsAndDependenciesGrid(
 
     var chartWidthPx by remember { mutableStateOf(0f) }
     val pointerPositionState = remember { mutableStateOf<Offset?>(null) }
+
+    // Create a composition key that will force pointer input recomposition
+    // This needs to be updated whenever the task list changes (e.g. expand/collapse)
     val pointerInputKey = remember { mutableStateOf(0) }
 
-    // Keep track of the visible items - this is crucial for scrolling
-    val visibleItems = remember { mutableStateListOf<Int>() }
+    // Keep track of expanded/collapsed state to reset pointer input
+    val expandedTaskIds = remember { mutableStateOf(tasks.filter { it.isExpanded }.map { it.id }.toSet()) }
+
+    // Update pointer input key when task expansion state changes
+    LaunchedEffect(expandedTaskIds.value) {
+        pointerInputKey.value++
+    }
+
+    // Update expanded task set when tasks change
+    LaunchedEffect(tasks) {
+        val newExpandedTaskIds = tasks.filter { it.isExpanded }.map { it.id }.toSet()
+        if (newExpandedTaskIds != expandedTaskIds.value) {
+            expandedTaskIds.value = newExpandedTaskIds
+        }
+    }
 
     // Update the key whenever the list scrolls to force pointerInput to re-initialize
     LaunchedEffect(listState) {
@@ -78,16 +94,6 @@ fun TaskBarsAndDependenciesGrid(
                 // Increment the key to force recomposition of pointerInput
                 pointerInputKey.value++
             }
-    }
-
-    // Update visible items when the list scrolls
-    LaunchedEffect(listState) {
-        snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.map { it.index }
-        }.collect { indices ->
-            visibleItems.clear()
-            visibleItems.addAll(indices)
-        }
     }
 
     Box(
@@ -106,18 +112,17 @@ fun TaskBarsAndDependenciesGrid(
                             PointerEventType.Move -> {
                                 val position = event.changes.first().position
                                 pointerPositionState.value = position
-                                println("Pointer position: $position")
-                                // Check if pointer is over any task
+
+                                // Improved task hit testing
                                 val hoveredTask = findTaskAtPosition(
                                     position = position,
                                     tasks = tasks,
                                     timelineViewInfo = timelineViewInfo,
                                     rowHeightPx = rowHeightPx,
-                                    lazyListState = listState
+                                    listState = listState
                                 )
 
                                 if (hoveredTask != null) {
-                                    println("Hovering over task: ${hoveredTask.name}")
                                     onTaskHover(
                                         TaskHoverInfo(
                                             taskId = hoveredTask.id,
@@ -126,6 +131,31 @@ fun TaskBarsAndDependenciesGrid(
                                     )
                                 } else {
                                     onTaskHover(null)
+                                }
+
+                            }
+
+                            PointerEventType.Press -> {
+                                val position = event.changes.first().position
+                                val clickedTask = findTaskAtPosition(
+                                    position = position,
+                                    tasks = tasks,
+                                    timelineViewInfo = timelineViewInfo,
+                                    rowHeightPx = rowHeightPx,
+                                    listState = listState
+                                )
+
+                                if (clickedTask != null) {
+                                    // Immediately update to force pointer input refresh
+                                    if (clickedTask.hasChildren) {
+                                        expandedTaskIds.value = if (clickedTask.isExpanded) {
+                                            expandedTaskIds.value - clickedTask.id
+                                        } else {
+                                            expandedTaskIds.value + clickedTask.id
+                                        }
+                                    }
+                                    // Trigger the callback
+                                    onToggleTaskExpansion(clickedTask.id)
                                 }
                             }
 
@@ -192,7 +222,12 @@ fun TaskBarsAndDependenciesGrid(
                                 chartWidthPx = chartWidthPx,
                                 isHovered = hoveredTaskInfo?.taskId == task.id,
                                 theme = theme,
+                                onSurfaceColor = arrowColor,  // Missing - add this
+                                borderWidthHovered = with(density) { 1.5.dp.toPx() },  // Missing - add this
+                                borderWidthNormal = with(density) { 1.dp.toPx() },  // Missing - add this
+                                taskBarTextPaddingPx = with(density) { theme.styles.taskBarTextPadding.toPx() }  // Missing - add this
                             )
+
                         }
                     }
                 }
@@ -216,7 +251,8 @@ fun TaskBarsAndDependenciesGrid(
 
                                     // Calculate parent task position regardless of visibility
                                     val parentTaskTopY = if (parentTaskIndex >= firstVisibleItemIndex &&
-                                        parentTaskIndex <= lastVisibleItemIndex) {
+                                        parentTaskIndex <= lastVisibleItemIndex
+                                    ) {
                                         // Parent is visible, get actual position
                                         val parentItemInfo = visibleItemInfo.find { it.index == parentTaskIndex }
                                         parentItemInfo?.offset?.toFloat() ?: 0f
@@ -275,58 +311,52 @@ fun TaskBarsAndDependenciesGrid(
     }
 }
 
-// Helper function to find a task at a specific position
-fun findTaskAtPosition(
+/**
+ * Finds a task at the given position, accounting for task collapsing/expanding
+ */
+private fun findTaskAtPosition(
     position: Offset,
     tasks: List<GanttTask>,
     timelineViewInfo: TimelineViewInfo,
     rowHeightPx: Float,
-    lazyListState: LazyListState
+    listState: LazyListState
 ): GanttTask? {
-    // Get visible items info directly from the LazyListState
-    val visibleItemsInfo = lazyListState.layoutInfo.visibleItemsInfo
+    // Get information about visible items
+    val visibleItems = listState.layoutInfo.visibleItemsInfo
+    if (visibleItems.isEmpty()) return null
 
-    // If there are no visible items, return null
-    if (visibleItemsInfo.isEmpty()) return null
+    // Find which visible item was clicked
+    for (itemInfo in visibleItems) {
+        val itemTop = itemInfo.offset
+        val itemBottom = itemTop + itemInfo.size
 
-    // Find which visible item contains the y-coordinate of the pointer
-    for (itemInfo in visibleItemsInfo) {
-        val itemIndex = itemInfo.index
-        val itemTopY = itemInfo.offset.toFloat()
-        val itemBottomY = itemTopY + rowHeightPx
+        // Check if the click Y position is within this item
+        if (position.y >= itemTop && position.y <= itemBottom) {
+            val task = tasks.getOrNull(itemInfo.index) ?: continue
 
-        // Check if the position's Y coordinate is within this item's bounds
-        if (position.y >= itemTopY && position.y <= itemBottomY) {
-            if (itemIndex < 0 || itemIndex >= tasks.size) continue
-
-            val task = tasks[itemIndex]
-
-            // Calculate task bar boundaries within this item
+            // Now check if X position is within the task bar
             val taskStartOffsetSeconds = timelineViewInfo.viewStartDate.until(
                 task.startDate, DateTimeUnit.SECOND, TimeZone.UTC
             )
 
             val taskX = (taskStartOffsetSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
-            val taskWidthPx = (task.duration.inWholeSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
+            val taskWidthPx = (task.effectiveDuration.inWholeSeconds *
+                    timelineViewInfo.pixelsPerSecond).toFloat()
 
-            // Calculate the height and position of the actual task bar within the row
-            val barHeight = rowHeightPx * 0.7f
-            val barTopY = itemTopY + (rowHeightPx - barHeight) / 2
-
-            // Check if position is within task bar
-            if (position.x >= taskX &&
-                position.x <= taskX + taskWidthPx &&
-                position.y >= barTopY &&
-                position.y <= barTopY + barHeight
-            ) {
+            // Check if position is within task bar bounds
+            if (position.x >= taskX && position.x <= taskX + taskWidthPx) {
                 return task
             }
+
+            break // We found the row but not on the task bar
         }
     }
 
     return null
 }
 
+
+// Modified drawTaskBar function with simpler implementation for larger +/- symbols
 fun drawTaskBar(
     drawScope: DrawScope,
     task: GanttTask,
@@ -337,12 +367,14 @@ fun drawTaskBar(
     textStyle: TextStyle,
     chartWidthPx: Float,
     isHovered: Boolean = false,
-    theme: GanttThemeConfig
-
+    theme: GanttThemeConfig,
+    onSurfaceColor: Color,
+    borderWidthHovered: Float,
+    borderWidthNormal: Float,
+    taskBarTextPaddingPx: Float
 ) {
-
     drawScope.apply {
-        // Use theme values for calculations
+        // Calculate task position and dimensions
         val taskStartOffsetSeconds = timelineViewInfo.viewStartDate.until(
             task.startDate, DateTimeUnit.SECOND, TimeZone.UTC
         )
@@ -351,10 +383,10 @@ fun drawTaskBar(
         val taskWidthPx = (task.effectiveDuration.inWholeSeconds *
                 timelineViewInfo.pixelsPerSecond).toFloat()
 
-        // Rest of the drawing code remains the same...
         // Use theme values for calculations
         val barHeight = rowHeightPx * theme.styles.taskBarHeight
         val barTopY = taskTopY + (rowHeightPx - barHeight) / 2
+        val barCenterY = barTopY + barHeight / 2
 
         // Use different styles for parent vs child tasks
         val cornerRadius = if (task.hasChildren) {
@@ -370,8 +402,7 @@ fun drawTaskBar(
         val borderColor = theme.colors.taskBarBorder(task.color, isHovered)
         val progressColor = theme.colors.taskBarProgress(task.color, isHovered)
 
-
-        val borderWidth = if (isHovered) 1.5.dp.toPx() else 1.dp.toPx()
+        val borderWidth = if (isHovered) borderWidthHovered else borderWidthNormal
 
         if (isHovered) {
             // Draw subtle glow/shadow around the bar
@@ -412,54 +443,96 @@ fun drawTaskBar(
             style = Stroke(width = borderWidth)
         )
 
-        // Task Name Text Placement
-        val paddingPx = theme.styles.taskBarTextPadding.toPx()
-        val textLayoutResult = textMeasurer.measure(task.name, style = textStyle)
-        val textWidth = textLayoutResult.size.width
+        // Prepare text content
+        val taskName = task.name
+        
+        // Prepare text content - for parent tasks, we'll leave space for the indicator
+        val indicator = if (task.hasChildren) {
+            if (task.isExpanded) "-" else "+"
+        } else null
+        
+        // Measure the text and indicator (if present)
+        val textLayoutResult = textMeasurer.measure(taskName, style = textStyle)
         val textHeight = textLayoutResult.size.height
+        val textWidth = textLayoutResult.size.width.toFloat()
+        
+        // Additional width needed for indicator
+        val indicatorWidth = if (indicator != null) {
+            val indicatorStyle = textStyle.copy(fontSize = textStyle.fontSize * 1.5f)
+            val indicatorLayoutResult = textMeasurer.measure(indicator, style = indicatorStyle)
+            indicatorLayoutResult.size.width.toFloat() + taskBarTextPaddingPx
+        } else 0f
+        
+        // Available width for text inside the bar (accounting for padding and indicator)
+        val availableWidthInside = taskWidthPx - (2 * taskBarTextPaddingPx) - indicatorWidth
+        
+        // Space available to the left of the task bar (be cautious of edge cases)
+        val availableWidthLeft = taskX - taskBarTextPaddingPx
+        
+        // Space available to the right of the task bar
+        val availableWidthRight = chartWidthPx - (taskX + taskWidthPx) - taskBarTextPaddingPx
+        
+        // Determine text placement strategy
+        val textPlacement = when {
+            // Strategy 1: Inside the bar if it fits with padding
+            textWidth + indicatorWidth <= availableWidthInside -> TextPlacement.INSIDE_CENTERED
 
+            // Strategy 2: Right of the bar if it fits
+            textWidth + indicatorWidth <= availableWidthRight -> TextPlacement.RIGHT
+
+            // Strategy 3: Left of the bar if it fits
+            textWidth + indicatorWidth <= availableWidthLeft -> TextPlacement.LEFT
+            
+            // Strategy 4: Default to inside with truncation
+            else -> TextPlacement.INSIDE_CENTERED
+        }
+        
+        // Calculate text position based on placement strategy
         val textY = barTopY + (barHeight - textHeight) / 2
-
-        // Option 1: Center if fits
-        if (textWidth < taskWidthPx - (2 * paddingPx)) {
-            drawText(
-                textLayoutResult = textLayoutResult,
-                topLeft = Offset(taskX + (taskWidthPx - textWidth) / 2, textY)
-            )
-        } else {
-            // Option 2: Right of bar if fits in chart
-            val spaceRightOfBar = chartWidthPx - (taskX + taskWidthPx + paddingPx)
-            if (textWidth < spaceRightOfBar) {
-                drawText(
-                    textLayoutResult = textLayoutResult,
-                    topLeft = Offset(taskX + taskWidthPx + paddingPx, textY)
-                )
-            } else {
-                // Option 3: Left of bar if fits in chart (and enough space before task starts)
-                val spaceLeftOfBar = taskX - paddingPx
-                if (textWidth < spaceLeftOfBar) {
-                    drawText(
-                        textLayoutResult = textLayoutResult,
-                        topLeft = Offset(taskX - textWidth - paddingPx, textY)
-                    )
-                }
-                // Option 4 (Fallback): Truncated inside the bar on the left (Canvas doesn't auto-truncate)
-                // For simplicity, we'll let it overflow if it doesn't fit left/right.
-                // A more complex solution would clip the text or draw it truncated.
-                else if (taskWidthPx > paddingPx * 2) { // Only draw inside if bar has some width
-                    // This will just draw, potentially overflowing. Proper truncation on canvas is harder.
-                    clipRect(taskX + paddingPx, barTopY, taskX + taskWidthPx - paddingPx, barTopY + barHeight) {
-                        drawText(
-                            textLayoutResult = textLayoutResult,
-                            topLeft = Offset(taskX + paddingPx, textY)
-                        )
-                    }
-                }
+        
+        val textX = when (textPlacement) {
+            TextPlacement.INSIDE_CENTERED -> {
+                // Center text inside bar
+                taskX + (taskWidthPx - textWidth) / 2
             }
+            TextPlacement.RIGHT -> {
+                // Place text to the right of the bar
+                taskX + taskWidthPx + taskBarTextPaddingPx + indicatorWidth
+            }
+            TextPlacement.LEFT -> {
+                // Place text to the left of the bar
+                taskX - textWidth - taskBarTextPaddingPx - indicatorWidth
+            }
+        }
+
+        // Draw the text
+        drawText(
+            textLayoutResult = textLayoutResult,
+            topLeft = Offset(textX, textY)
+        )
+        
+        // Draw expansion indicator (+ or -) for parent tasks
+        if (indicator != null) {
+            val indicatorStyle = textStyle.copy(
+                fontSize = textStyle.fontSize * 2.0f  // Make it 100% larger
+            )
+            
+            val indicatorLayoutResult = textMeasurer.measure(indicator, style = indicatorStyle)
+            val indicatorHeight = indicatorLayoutResult.size.height
+            
+
+            
+            // Center vertically
+            val indicatorY = barTopY + (barHeight - indicatorHeight) / 2
+            
+            // Draw the indicator
+            drawText(
+                textLayoutResult = indicatorLayoutResult,
+                topLeft = Offset(textX - (indicatorWidth), indicatorY)
+            )
         }
     }
 }
-
 
 fun DrawScope.drawDependencyArrow(
     startX: Float,
@@ -508,49 +581,10 @@ fun DrawScope.drawDependencyArrow(
     drawPath(arrowPath, color = lineColor, style = Stroke(width = strokeWidth))
 }
 
-fun DrawScope.drawParentChildConnectors(
     parent: GanttTask,
-    children: List<GanttTask>,
-    timelineViewInfo: TimelineViewInfo,
-    rowPositions: Map<String, Float>, // Map of task IDs to Y positions
-    theme: GanttThemeConfig
-) {
-    if (children.isEmpty() || !parent.isExpanded) return
-
-    val lineColor = theme.colors.dependencyArrowColor(Color.Gray).copy(alpha = 0.3f)
-    val lineWidth = theme.styles.dependencyArrowWidth.toPx() * 0.5f
-
-    // Calculate parent's position
-    val parentStartX = (timelineViewInfo.viewStartDate.until(
-        parent.startDate, DateTimeUnit.SECOND, TimeZone.UTC
-    ) * timelineViewInfo.pixelsPerSecond).toFloat()
-
-    val parentY = rowPositions[parent.id] ?: return
-
-    // Draw connections to each child
-    children.forEach { child ->
-        val childY = rowPositions[child.id] ?: return@forEach
-
-        val childStartX = (timelineViewInfo.viewStartDate.until(
-            child.startDate, DateTimeUnit.SECOND, TimeZone.UTC
-        ) * timelineViewInfo.pixelsPerSecond).toFloat()
-
-        // Draw a subtle vertical line connecting parent to child
-        drawLine(
-            color = lineColor,
-            start = Offset(parentStartX, parentY),
-            end = Offset(parentStartX, childY),
-            strokeWidth = lineWidth,
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f, 2f), 0f)
-        )
-
-        // Draw a subtle horizontal line from parent vertical line to child start
-        drawLine(
-            color = lineColor,
-            start = Offset(parentStartX, childY),
-            end = Offset(childStartX, childY),
-            strokeWidth = lineWidth,
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f, 2f), 0f)
-        )
-    }
+// Enum for text placement strategies
+private enum class TextPlacement {
+    INSIDE_CENTERED,  // Inside the bar, centered
+    LEFT,             // To the left of the bar
+    RIGHT             // To the right of the bar
 }
