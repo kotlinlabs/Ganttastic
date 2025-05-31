@@ -15,6 +15,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 
+// TODO: Add tests to verify scrolling and tasks visibility.
 class GanttChartTest {
 
     @Test
@@ -348,32 +349,4 @@ class GanttChartTest {
             }
         }
     }
-}
-
-// Helper class to simulate LazyListState without actually using Compose runtime
-class TestLazyListState {
-    var firstVisibleItemIndex: Int = 0
-        private set
-    var firstVisibleItemScrollOffset: Int = 0
-        private set
-
-    fun scrollToItem(index: Int, scrollOffset: Int) {
-        firstVisibleItemIndex = index
-        firstVisibleItemScrollOffset = scrollOffset
-    }
-
-    val layoutInfo = TestLazyListLayoutInfo()
-
-    inner class TestLazyListLayoutInfo {
-        val visibleItemsInfo: List<TestLazyListItemInfo>
-            get() = listOf(
-                TestLazyListItemInfo(firstVisibleItemIndex, firstVisibleItemScrollOffset, 50)
-            )
-    }
-
-    class TestLazyListItemInfo(
-        val index: Int,
-        val offset: Int,
-        val size: Int
-    )
 }
