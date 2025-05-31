@@ -30,6 +30,7 @@ kotlin {
                 val composeBom = project.dependencies.platform("androidx.compose:compose-bom:2025.05.00")
                 implementation(composeBom)
                 implementation(projects.ganttly)
+//                implementation(libs.ganttly)
                 implementation(compose.runtime)
                 implementation(compose.material3)
             }

@@ -22,6 +22,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import io.github.kotlinlabs.ganttly.chart.icons.CircleIcon
 import io.github.kotlinlabs.ganttly.models.GanttTask
+import io.github.kotlinlabs.ganttly.styles.GanttTheme
 import kotlin.time.Duration
 
 @Composable
@@ -33,6 +34,7 @@ fun TaskTooltip(
 ) {
     val subTaskCount = task.children.size
     val subTasksComplete = task.children.count { it.progress >= 1.0f }
+    val theme = GanttTheme.current
 
     // Fixed size approximation for tooltip (can be refined)
     val tooltipWidth = 300
@@ -104,22 +106,24 @@ fun TaskTooltip(
                 }
 
                 // Progress
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Progress: ",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    LinearProgressIndicator(
-                        progress = { task.progress },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(start = 8.dp)
-                    )
-                    Text(
-                        text = " ${(task.progress * 100).toInt()}%",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                if (theme.styles.showTaskProgress) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Progress: ",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        LinearProgressIndicator(
+                            progress = { task.progress },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp)
+                        )
+                        Text(
+                            text = " ${(task.progress * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
 
                 // Subtask info (if present)
@@ -130,7 +134,7 @@ fun TaskTooltip(
                         DividerDefaults.color
                     )
                     Text(
-                        text = "Subtasks: $subTasksComplete/$subTaskCount complete",
+                        text = "${theme.naming.subtasks}: $subTasksComplete/$subTaskCount complete",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )

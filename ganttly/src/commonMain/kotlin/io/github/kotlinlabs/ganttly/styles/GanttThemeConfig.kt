@@ -136,6 +136,8 @@ class GanttStyles {
     var groupTagShape: Float = 4.0f
     var groupTagBorderWidth: Dp = 1.dp
     var groupTagPadding: Dp = 8.dp
+
+    var showTaskProgress = false
 }
 
 /**
@@ -145,6 +147,8 @@ class GanttNaming {
     var taskGroups: String = "Task Group"
     var noGroupsMessage: String = "No groups defined"
     var taskListHeader: String = "Tasks" // Add this if it doesn't exist
+
+    var subtasks: String = "Subtasks"
 }
 
 /**
