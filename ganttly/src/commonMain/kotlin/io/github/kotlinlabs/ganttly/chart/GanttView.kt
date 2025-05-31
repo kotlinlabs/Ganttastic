@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -65,6 +66,11 @@ fun GanttChartView(
             state.applyThemeColors(currentThemeColors)
         }
 
+        // Define test tags for UI testing
+        val ganttChartTestTag = "gantt_chart_view"
+        val taskListTestTag = "task_list_panel"
+        val timelinePanelTestTag = "timeline_panel"
+
         // Add hover state
         var hoveredTaskInfo by remember { mutableStateOf<TaskHoverInfo?>(null) }
         val hoverDebouncer = remember { Debouncer(hoverDelay) }
@@ -88,32 +94,56 @@ fun GanttChartView(
             }
         }
 
-        // Synchronize the two scroll states
-        LaunchedEffect(taskListState) {
+        // Variables to prevent infinite scroll sync loops
+        val isTaskListScrolling = remember { mutableStateOf(false) }
+        val isChartGridScrolling = remember { mutableStateOf(false) }
+
+        // Synchronize the two scroll states with loop prevention
+        LaunchedEffect(Unit) {
             snapshotFlow { taskListState.firstVisibleItemIndex to taskListState.firstVisibleItemScrollOffset }
                 .collect { (index, offset) ->
-                    // When taskList scrolls, update the chart grid
-                    if (chartGridState.firstVisibleItemIndex != index ||
-                        chartGridState.firstVisibleItemScrollOffset != offset
-                    ) {
-                        chartGridState.scrollToItem(index, offset)
+                    // Only synchronize if this is not a response to a chart grid scroll
+                    if (!isChartGridScrolling.value) {
+                        // Signal that task list is controlling the scroll
+                        isTaskListScrolling.value = true
+
+                        // When taskList scrolls, update the chart grid
+                        if (chartGridState.firstVisibleItemIndex != index ||
+                            chartGridState.firstVisibleItemScrollOffset != offset
+                        ) {
+                            chartGridState.scrollToItem(index, offset)
+                        }
+
+                        // Reset the flag after a small delay
+                        kotlinx.coroutines.delay(50)
+                        isTaskListScrolling.value = false
                     }
                 }
         }
 
-        LaunchedEffect(chartGridState) {
+        LaunchedEffect(Unit) {
             snapshotFlow { chartGridState.firstVisibleItemIndex to chartGridState.firstVisibleItemScrollOffset }
                 .collect { (index, offset) ->
-                    // When chart grid scrolls, update the taskList
-                    if (taskListState.firstVisibleItemIndex != index ||
-                        taskListState.firstVisibleItemScrollOffset != offset
-                    ) {
-                        taskListState.scrollToItem(index, offset)
+                    // Only synchronize if this is not a response to a task list scroll
+                    if (!isTaskListScrolling.value) {
+                        // Signal that chart grid is controlling the scroll
+                        isChartGridScrolling.value = true
+
+                        // When chart grid scrolls, update the taskList
+                        if (taskListState.firstVisibleItemIndex != index ||
+                            taskListState.firstVisibleItemScrollOffset != offset
+                        ) {
+                            taskListState.scrollToItem(index, offset)
+                        }
+
+                        // Reset the flag after a small delay
+                        kotlinx.coroutines.delay(50)
+                        isChartGridScrolling.value = false
                     }
                 }
         }
 
-        Column(modifier = modifier.fillMaxSize()) {
+        Column(modifier = modifier.fillMaxSize().testTag(ganttChartTestTag)) {
             // Header row with both headers side by side, using measured height
             AnimatedVisibility(
                 visible = headerCollapseFraction < 1f,
@@ -172,9 +202,8 @@ fun GanttChartView(
                         headerHeight = headerHeight,
                         listState = taskListState,
                         onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
-                        modifier = Modifier.fillMaxHeight()
+                        modifier = Modifier.fillMaxHeight().testTag(taskListTestTag)
                     )
-
 
                     HorizontalDivider(
                         modifier = Modifier.fillMaxHeight().width(1.dp)
@@ -205,7 +234,7 @@ fun GanttChartView(
                             }
                         },
                         onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize().testTag(timelinePanelTestTag)
                     )
 
                     // Draw the tooltip
@@ -222,6 +251,7 @@ fun GanttChartView(
         }
     }
 }
+
 
 @Composable
 fun TaskListPanel(
@@ -285,10 +315,12 @@ fun TaskNameCell(
     onToggleExpand: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Add test tag for UI testing
+    val taskCellTestTag = "task_cell_${task.id}"
     val indentSize = 16.dp
 
     Row(
-        modifier = modifier,
+        modifier = modifier.testTag(taskCellTestTag),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Indentation based on level
@@ -385,6 +417,8 @@ fun SimpleTimelineHeader(
     headerHeight: Dp,
     modifier: Modifier = Modifier
 ) {
+    // Add test tag for UI testing
+    val timelineHeaderTestTag = "timeline_header"
     val theme = GanttTheme.current
     val borderColor = theme.colors.timelineHeaderBorderColor(MaterialTheme.colorScheme.outline)
     Box(
@@ -392,6 +426,7 @@ fun SimpleTimelineHeader(
             .height(headerHeight)
             .fillMaxWidth()
             .border(theme.styles.timelineHeaderBorderWidth, borderColor)
+            .testTag(timelineHeaderTestTag)
     ) {
         // Start time label
         Text(
