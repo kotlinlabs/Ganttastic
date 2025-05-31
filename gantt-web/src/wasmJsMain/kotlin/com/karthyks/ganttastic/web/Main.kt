@@ -24,6 +24,7 @@ fun main() {
                 taskListHeader = "Jobs"
                 taskGroups = "Stage"
                 noGroupsMessage = "No stages found"
+                subtasks = "Child jobs"
             }
         }
         GanttChartView(

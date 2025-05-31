@@ -206,39 +206,8 @@ fun TaskBarsAndDependenciesGrid(
             val lastVisibleItemIndex = visibleItemInfo.lastOrNull()?.index ?: tasks.lastIndex
 
             clipRect(0f, 0f, chartWidthPx, size.height) {
-                // Draw Task Bars - only for visible items
-                for (i in firstVisibleItemIndex..lastVisibleItemIndex) {
-                    if (i < tasks.size) {
-                        val task = tasks[i]
-
-                        // Calculate the actual Y position based on the visible item info
-                        val itemInfo = visibleItemInfo.find { it.index == i }
-                        if (itemInfo != null) {
-                            val taskTopY = itemInfo.offset.toFloat()
-
-                            // Draw task bar
-                            drawTaskBar(
-                                drawScope = this,
-                                task = task,
-                                taskTopY = taskTopY,
-                                rowHeightPx = rowHeightPx,
-                                timelineViewInfo = timelineViewInfo,
-                                textMeasurer = textMeasurer,
-                                textStyle = taskTextStyle,
-                                chartWidthPx = chartWidthPx,
-                                isHovered = hoveredTaskInfo?.taskId == task.id,
-                                theme = theme,
-                                onSurfaceColor = arrowColor,  // Missing - add this
-                                borderWidthHovered = with(density) { 1.5.dp.toPx() },  // Missing - add this
-                                borderWidthNormal = with(density) { 1.dp.toPx() },  // Missing - add this
-                                taskBarTextPaddingPx = with(density) { theme.styles.taskBarTextPadding.toPx() }  // Missing - add this
-                            )
-
-                        }
-                    }
-                }
-
-                // Draw Dependency Arrows - only between visible items
+                // Draw Dependency Arrows FIRST - only between visible items
+                // This ensures arrows appear behind task bars
                 for (i in firstVisibleItemIndex..lastVisibleItemIndex) {
                     if (i < tasks.size) {
                         val currentTask = tasks[i]
@@ -312,6 +281,37 @@ fun TaskBarsAndDependenciesGrid(
                     }
                 }
 
+                // Draw Task Bars AFTER arrows - only for visible items
+                // This ensures task bars appear on top of arrows
+                for (i in firstVisibleItemIndex..lastVisibleItemIndex) {
+                    if (i < tasks.size) {
+                        val task = tasks[i]
+
+                        // Calculate the actual Y position based on the visible item info
+                        val itemInfo = visibleItemInfo.find { it.index == i }
+                        if (itemInfo != null) {
+                            val taskTopY = itemInfo.offset.toFloat()
+
+                            // Draw task bar
+                            drawTaskBar(
+                                drawScope = this,
+                                task = task,
+                                taskTopY = taskTopY,
+                                rowHeightPx = rowHeightPx,
+                                timelineViewInfo = timelineViewInfo,
+                                textMeasurer = textMeasurer,
+                                textStyle = taskTextStyle,
+                                chartWidthPx = chartWidthPx,
+                                isHovered = hoveredTaskInfo?.taskId == task.id,
+                                theme = theme,
+                                onSurfaceColor = arrowColor,
+                                borderWidthHovered = with(density) { 1.5.dp.toPx() },
+                                borderWidthNormal = with(density) { 1.dp.toPx() },
+                                taskBarTextPaddingPx = with(density) { theme.styles.taskBarTextPadding.toPx() }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
