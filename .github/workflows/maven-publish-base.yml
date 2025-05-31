@@ -48,6 +48,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # Verify tests on WASM JS
+      - name: Verify WASM JS tests.
+        run: ./gradlew :ganttly:wasmJsBrowserTest
+
       # Publish or Dry Publish depending on input
       - name: Publish or Dry Run with signing
         run: |
