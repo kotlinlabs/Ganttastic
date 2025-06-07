@@ -67,8 +67,10 @@ fun main() {
 val customTheme = ganttTheme {
     colors {
         // Override default colors
-        taskBarBackground = { baseColor, isHovered -> 
-            if (isHovered) baseColor.copy(alpha = 0.8f) else baseColor.copy(alpha = 0.6f) 
+        taskBarBackground = { baseColor, isHovered, progress -> 
+            if (progress >= 1f) baseColor.copy(alpha = 1f)
+            else if (isHovered) baseColor.copy(alpha = 0.8f) 
+            else baseColor.copy(alpha = 0.6f) 
         }
     }
     styles {

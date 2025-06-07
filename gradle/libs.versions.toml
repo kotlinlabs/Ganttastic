@@ -14,8 +14,11 @@ kotlinxDatetime = "0.6.0"
 lifecycleRuntimeKtx = "2.9.0"
 composeBom = "2025.05.01"
 jreleaser = "1.18.0"
+materialIconsCore = "1.8.2"
 
 [libraries]
+androidx-material-icons-core = { module = "androidx.compose.material:material-icons-core", version.ref = "materialIconsCore" }
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsCore" }
 ganttly = { module = "io.github.kotlinlabs:ganttly", version.ref = "ganttly" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }

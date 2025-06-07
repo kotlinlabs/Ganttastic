@@ -404,7 +404,7 @@ fun drawTaskBar(
         }
 
         // Get colors from theme
-        val backgroundColor = theme.colors.taskBarBackground(task.color, isHovered)
+        val backgroundColor = theme.colors.taskBarBackground(task.color, isHovered, task.progress)
         val borderColor = theme.colors.taskBarBorder(task.color, isHovered)
         val progressColor = theme.colors.taskBarProgress(task.color, isHovered)
 

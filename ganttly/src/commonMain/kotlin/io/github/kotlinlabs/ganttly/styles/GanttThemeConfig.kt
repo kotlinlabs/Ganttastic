@@ -49,8 +49,8 @@ class GanttColors {
     var defaultGroupColor: Color = Color(0xFF4CAF50)
 
     // Task bar appearance
-    var taskBarBackground: (Color, Boolean) -> Color = { baseColor, isHovered ->
-        baseColor.copy(alpha = if (isHovered) 0.4f else 0.2f)
+    var taskBarBackground: (Color, Boolean, Float) -> Color = { baseColor, isHovered, progress ->
+        baseColor.copy(alpha = if (progress >= 1f) 1f else if (isHovered) 0.4f else 0.2f)
     }
     var taskBarBorder: (Color, Boolean) -> Color = { baseColor, isHovered ->
         baseColor.copy(alpha = if (isHovered) 0.9f else 0.7f)

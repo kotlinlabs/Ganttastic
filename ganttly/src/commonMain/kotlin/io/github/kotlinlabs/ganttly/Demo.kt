@@ -91,7 +91,7 @@ fun createLargeGanttStateDemo(): GanttChartState {
                     name = taskName,
                     startDate = currentTime,
                     duration = (2 + (taskIndex % 3)).hours,
-                    progress = progress,
+                    progress = 1.0f,
                     dependencies = dependencies.filter { it.isNotEmpty() },
                     group = phaseGroup,
                     color = groupColors[phaseGroup] ?: Color.Gray
