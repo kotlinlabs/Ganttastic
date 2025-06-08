@@ -44,7 +44,7 @@ fun main() {
                 ) {
                     Text(
                         "Project Timeline Overview",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold
                     )
 

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +26,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.kotlinlabs.ganttly.styles.GanttTheme
+
+@Composable
+fun DefaultCard(modifier: Modifier, content: @Composable () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(8.dp),
+        modifier = modifier,
+        content = content
+    )
+}
 
 /**
  * Displays a card containing the legend for the Gantt chart.
@@ -36,17 +47,28 @@ import io.github.kotlinlabs.ganttly.styles.GanttTheme
 @Composable
 fun LegendsCard(
     ganttChartState: GanttChartState,
+    showContent: Boolean,
+    onShow: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(8.dp),
+    DefaultCard(
         modifier = modifier
     ) {
-        GroupInfoHeader(
-            groupInfo = ganttChartState.getGroupInfo(),
-            taskCountProvider = { group -> ganttChartState.tasks.count { it.group == group } }
-        )
+        Column {
+            OutlinedButton(
+                onClick = { onShow(!showContent) },
+                modifier = Modifier.align(alignment = Alignment.End),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(text = if (showContent) "Hide Legends" else "Show Legends")
+            }
+            if (showContent) {
+                GroupInfoHeader(
+                    groupInfo = ganttChartState.getGroupInfo(),
+                    taskCountProvider = { group -> ganttChartState.tasks.count { it.group == group } }
+                )
+            }
+        }
     }
 }
 
