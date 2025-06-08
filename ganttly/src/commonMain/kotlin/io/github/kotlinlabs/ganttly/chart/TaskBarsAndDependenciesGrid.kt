@@ -7,7 +7,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
@@ -28,7 +35,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -76,7 +82,8 @@ fun TaskBarsAndDependenciesGrid(
     val pointerInputKey = remember { mutableStateOf(0) }
 
     // Keep track of expanded/collapsed state to reset pointer input
-    val expandedTaskIds = remember { mutableStateOf(tasks.filter { it.isExpanded }.map { it.id }.toSet()) }
+    val expandedTaskIds =
+        remember { mutableStateOf(tasks.filter { it.isExpanded }.map { it.id }.toSet()) }
 
     // Update pointer input key when task expansion state changes
     LaunchedEffect(expandedTaskIds.value) {
@@ -225,22 +232,22 @@ fun TaskBarsAndDependenciesGrid(
                                     val parentTask = tasks[parentTaskIndex]
 
                                     // Calculate parent task position regardless of visibility
-                                    val parentTaskTopY = if (parentTaskIndex >= firstVisibleItemIndex &&
-                                        parentTaskIndex <= lastVisibleItemIndex
-                                    ) {
-                                        // Parent is visible, get actual position
-                                        val parentItemInfo = visibleItemInfo.find { it.index == parentTaskIndex }
-                                        parentItemInfo?.offset?.toFloat() ?: 0f
-                                    } else {
-                                        // Parent is not visible, calculate position relative to view
-                                        if (parentTaskIndex < firstVisibleItemIndex) {
-                                            // Parent is above the visible area
-                                            0f - ((firstVisibleItemIndex - parentTaskIndex) * rowHeightPx)
+                                    val parentTaskTopY =
+                                        if (parentTaskIndex in firstVisibleItemIndex..lastVisibleItemIndex) {
+                                            // Parent is visible, get actual position
+                                            val parentItemInfo =
+                                                visibleItemInfo.find { it.index == parentTaskIndex }
+                                            parentItemInfo?.offset?.toFloat() ?: 0f
                                         } else {
-                                            // Parent is below the visible area
-                                            size.height + ((parentTaskIndex - lastVisibleItemIndex) * rowHeightPx)
+                                            // Parent is not visible, calculate position relative to view
+                                            if (parentTaskIndex < firstVisibleItemIndex) {
+                                                // Parent is above the visible area
+                                                0f - ((firstVisibleItemIndex - parentTaskIndex) * rowHeightPx)
+                                            } else {
+                                                // Parent is below the visible area
+                                                size.height + ((parentTaskIndex - lastVisibleItemIndex) * rowHeightPx)
+                                            }
                                         }
-                                    }
 
                                     // Calculate X coordinates
                                     val parentTaskStartX = (timelineViewInfo.viewStartDate.until(
@@ -251,7 +258,8 @@ fun TaskBarsAndDependenciesGrid(
                                             timelineViewInfo.pixelsPerSecond).toFloat()
 
                                     // Parent task bottom center X
-                                    val parentTaskBottomCenterX = parentTaskStartX + (parentTaskWidthPx / 2)
+                                    val parentTaskBottomCenterX =
+                                        parentTaskStartX + (parentTaskWidthPx / 2)
 
                                     // Parent task bottom Y
                                     val barHeight = rowHeightPx * 0.7f
@@ -501,10 +509,12 @@ fun drawTaskBar(
                 // Center text inside bar
                 taskX + (taskWidthPx - textWidth) / 2
             }
+
             TextPlacement.RIGHT -> {
                 // Place text to the right of the bar
                 taskX + taskWidthPx + taskBarTextPaddingPx + indicatorWidth
             }
+
             TextPlacement.LEFT -> {
                 // Place text to the left of the bar
                 taskX - textWidth - taskBarTextPaddingPx - indicatorWidth
@@ -525,7 +535,6 @@ fun drawTaskBar(
 
             val indicatorLayoutResult = textMeasurer.measure(indicator, style = indicatorStyle)
             val indicatorHeight = indicatorLayoutResult.size.height
-
 
 
             // Center vertically

@@ -1,9 +1,26 @@
 package io.github.kotlinlabs.ganttly.chart
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -11,6 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
@@ -30,7 +50,8 @@ fun TaskTooltip(
     task: GanttTask,
     position: Offset,
     allTasks: List<GanttTask>,
-    layoutInfo: LazyListLayoutInfo
+    layoutInfo: LazyListLayoutInfo,
+    onHovered: (Boolean) -> Unit
 ) {
     val subTaskCount = task.children.size
     val subTasksComplete = task.children.count { it.progress >= 1.0f }
@@ -80,6 +101,23 @@ fun TaskTooltip(
             ),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.widthIn(min = 200.dp, max = 300.dp)
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val pointerType = event.type
+                            when (pointerType) {
+                                PointerEventType.Exit -> {
+                                    onHovered(false)
+                                }
+
+                                PointerEventType.Enter -> {
+                                    onHovered(true)
+                                }
+                            }
+                        }
+                    }
+                }
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -194,7 +232,10 @@ fun TaskTooltip(
                                     Text(
                                         text = depTask.name,
                                         style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        modifier = Modifier.padding(
+                                            horizontal = 6.dp,
+                                            vertical = 2.dp
+                                        )
                                     )
                                 }
                             }
@@ -222,15 +263,17 @@ private fun TooltipPopup(
 //            excludeFromSystemGesture = true
         )
     ) {
-        Box(
-            // Important: this ensures the popup doesn't interfere with mouse events
-            modifier = Modifier.semantics {
-                // Disable semantics entirely
-                contentDescription = ""
-                disabled()
+        SelectionContainer {
+            Box(
+                // Important: this ensures the popup doesn't interfere with mouse events
+                modifier = Modifier.semantics {
+                    // Disable semantics entirely
+                    contentDescription = ""
+                    disabled()
+                }
+            ) {
+                content()
             }
-        ) {
-            content()
         }
     }
 }
@@ -245,7 +288,10 @@ private fun TooltipPopup(
  * @param style The formatting style to use
  * @return A formatted string representation of the duration
  */
-fun formatDuration(duration: Duration, style: DurationFormatStyle = DurationFormatStyle.FULL): String {
+fun formatDuration(
+    duration: Duration,
+    style: DurationFormatStyle = DurationFormatStyle.FULL
+): String {
     // Extract hours, minutes, seconds
     val hours = duration.inWholeHours
     val minutes = (duration.inWholeMinutes % 60)
