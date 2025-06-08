@@ -2,7 +2,17 @@ package io.github.kotlinlabs.ganttly.chart
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -17,6 +27,30 @@ import androidx.compose.ui.unit.dp
 import io.github.kotlinlabs.ganttly.styles.GanttTheme
 
 /**
+ * Displays a card containing the legend for the Gantt chart.
+ * This card shows the group information, including the color indicators and task counts for each group.
+ *
+ * @param ganttChartState The current state of the Gantt chart, used to retrieve group information and task counts.
+ * @param modifier Modifier for styling and layout of the card.
+ */
+@Composable
+fun LegendsCard(
+    ganttChartState: GanttChartState,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(8.dp),
+        modifier = modifier
+    ) {
+        GroupInfoHeader(
+            groupInfo = ganttChartState.getGroupInfo(),
+            taskCountProvider = { group -> ganttChartState.tasks.count { it.group == group } }
+        )
+    }
+}
+
+/**
  * Displays group information as a header showing all task groups with their color indicators and counts.
  *
  * @param groupInfo Map of group names to their assigned colors
@@ -24,7 +58,7 @@ import io.github.kotlinlabs.ganttly.styles.GanttTheme
  * @param modifier Modifier for the composable
  */
 @Composable
-fun GroupInfoHeader(
+private fun GroupInfoHeader(
     groupInfo: Map<String, Color>,
     taskCountProvider: (String) -> Int,
     modifier: Modifier = Modifier
@@ -52,11 +86,17 @@ fun GroupInfoHeader(
                     Surface(
                         color = color.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(theme.styles.groupTagShape),
-                        border = BorderStroke(theme.styles.groupTagBorderWidth, color.copy(alpha = 0.3f)),
+                        border = BorderStroke(
+                            theme.styles.groupTagBorderWidth,
+                            color.copy(alpha = 0.3f)
+                        ),
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = theme.styles.groupTagPadding, vertical = 4.dp)
+                            modifier = Modifier.padding(
+                                horizontal = theme.styles.groupTagPadding,
+                                vertical = 4.dp
+                            )
                         ) {
                             Box(
                                 modifier = Modifier

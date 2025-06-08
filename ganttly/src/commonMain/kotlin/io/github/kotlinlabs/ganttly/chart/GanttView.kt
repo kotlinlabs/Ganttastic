@@ -198,18 +198,12 @@ fun GanttChartView(
                     }
 
                     // Right side: Group info header
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(8.dp),
+                    LegendsCard(
+                        ganttChartState = state,
                         modifier = Modifier
                             .weight(if (headerContent != null) 0.4f else 1f)
                             .wrapContentHeight()
-                    ) {
-                        GroupInfoHeader(
-                            groupInfo = state.getGroupInfo(),
-                            taskCountProvider = { group -> state.tasks.count { it.group == group } }
-                        )
-                    }
+                    )
                 }
             }
 
