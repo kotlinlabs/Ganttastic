@@ -32,7 +32,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +55,7 @@ import io.github.kotlinlabs.ganttly.styles.GanttTheme
 import io.github.kotlinlabs.ganttly.styles.GanttThemeConfig
 import io.github.kotlinlabs.ganttly.styles.ProvideGanttTheme
 import io.github.kotlinlabs.ganttly.styles.TaskGroupColorCoordinator
+import kotlinx.coroutines.delay
 
 
 const val DEFAULT_TASK_LIST_WIDTH_DP = 220
@@ -100,21 +100,6 @@ fun GanttChartView(
         val taskListState = rememberLazyListState()
         val chartGridState = rememberLazyListState()
 
-        // Calculate header visibility based on scroll position
-        val headerCollapseFraction by remember {
-            derivedStateOf {
-                val firstVisibleItemIndex = chartGridState.firstVisibleItemIndex
-                val firstVisibleItemOffset = chartGridState.firstVisibleItemScrollOffset
-
-                if (firstVisibleItemIndex == 0) {
-                    val collapseTresholdPx = 200f
-                    (firstVisibleItemOffset / collapseTresholdPx).coerceIn(0f, 1f)
-                } else {
-                    1.0f
-                }
-            }
-        }
-
         // Variables to prevent infinite scroll sync loops
         val isTaskListScrolling = remember { mutableStateOf(false) }
         val isChartGridScrolling = remember { mutableStateOf(false) }
@@ -136,7 +121,7 @@ fun GanttChartView(
                         }
 
                         // Reset the flag after a small delay
-                        kotlinx.coroutines.delay(50)
+                        delay(50)
                         isTaskListScrolling.value = false
                     }
                 }
@@ -158,7 +143,7 @@ fun GanttChartView(
                         }
 
                         // Reset the flag after a small delay
-                        kotlinx.coroutines.delay(50)
+                        delay(50)
                         isChartGridScrolling.value = false
                     }
                 }
@@ -166,8 +151,9 @@ fun GanttChartView(
 
         Column(modifier = modifier.fillMaxSize().testTag(ganttChartTestTag)) {
             // Header row with both headers side by side, using measured height
+            // TODO hide when scrolling up and show when scrolled to the top
             AnimatedVisibility(
-                visible = headerCollapseFraction < 1f,
+                visible = true,
                 enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
                 exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
             ) {
