@@ -2,11 +2,13 @@ package io.github.kotlinlabs.ganttly.styles
 
 import androidx.compose.ui.graphics.Color
 import io.github.kotlinlabs.ganttly.models.GanttTask
+import kotlin.time.ExperimentalTime
 
 /**
  * Coordinates group colors across the Gantt chart based on theme settings.
  * This is a singleton that will be used by both the state and the rendering components.
  */
+@OptIn(ExperimentalTime::class)
 object TaskGroupColorCoordinator {
     private val groupColorCache = mutableMapOf<String, Color>()
 

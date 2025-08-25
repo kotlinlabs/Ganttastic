@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -7,7 +9,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
@@ -28,7 +37,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,6 +51,7 @@ import kotlinx.datetime.until
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.time.ExperimentalTime
 
 @Composable
 fun TaskBarsAndDependenciesGrid(
@@ -501,10 +510,12 @@ fun drawTaskBar(
                 // Center text inside bar
                 taskX + (taskWidthPx - textWidth) / 2
             }
+
             TextPlacement.RIGHT -> {
                 // Place text to the right of the bar
                 taskX + taskWidthPx + taskBarTextPaddingPx + indicatorWidth
             }
+
             TextPlacement.LEFT -> {
                 // Place text to the left of the bar
                 taskX - textWidth - taskBarTextPaddingPx - indicatorWidth
@@ -525,7 +536,6 @@ fun drawTaskBar(
 
             val indicatorLayoutResult = textMeasurer.measure(indicator, style = indicatorStyle)
             val indicatorHeight = indicatorLayoutResult.size.height
-
 
 
             // Center vertically

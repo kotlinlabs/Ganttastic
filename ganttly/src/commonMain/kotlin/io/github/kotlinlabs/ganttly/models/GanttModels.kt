@@ -1,12 +1,15 @@
+@file:OptIn(ExperimentalTime::class)
+
 package io.github.kotlinlabs.ganttly.models
 
 import androidx.compose.ui.graphics.Color
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.until
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 data class GanttTask(
     val id: String,

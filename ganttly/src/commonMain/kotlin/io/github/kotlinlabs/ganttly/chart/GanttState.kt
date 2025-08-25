@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package io.github.kotlinlabs.ganttly.chart
 
 import androidx.compose.runtime.derivedStateOf
@@ -10,10 +12,17 @@ import io.github.kotlinlabs.ganttly.models.TimelineHeaderCell
 import io.github.kotlinlabs.ganttly.models.TimelineViewInfo
 import io.github.kotlinlabs.ganttly.styles.GanttColors
 import io.github.kotlinlabs.ganttly.styles.TaskGroupColorCoordinator
-import kotlinx.datetime.*
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.until
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 fun generateSimpleTimelineHeader(
     viewStart: Instant,

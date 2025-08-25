@@ -1,11 +1,22 @@
 package io.github.kotlinlabs.ganttly.chart
 
 import TaskBarsAndDependenciesGrid
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -14,7 +25,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -33,9 +50,6 @@ import io.github.kotlinlabs.ganttly.styles.GanttTheme
 import io.github.kotlinlabs.ganttly.styles.GanttThemeConfig
 import io.github.kotlinlabs.ganttly.styles.ProvideGanttTheme
 import io.github.kotlinlabs.ganttly.styles.TaskGroupColorCoordinator
-import io.github.kotlinlabs.ganttly.chart.formatDuration
-import io.github.kotlinlabs.ganttly.chart.DurationFormatStyle
-import kotlin.time.Duration
 
 
 const val DEFAULT_TASK_LIST_WIDTH_DP = 220
@@ -51,7 +65,6 @@ fun GanttChartView(
     headerHeight: Dp = DEFAULT_HEADER_HEIGHT_DP.dp,
     showTaskList: Boolean = true,
     hoverDelay: Long = 150,
-    headerContent: @Composable (() -> Unit)? = null,
     ganttTheme: GanttThemeConfig = GanttTheme.current
 ) {
     ProvideGanttTheme(ganttTheme) {
@@ -78,21 +91,6 @@ fun GanttChartView(
         // Create separate scroll states for each component
         val taskListState = rememberLazyListState()
         val chartGridState = rememberLazyListState()
-
-        // Calculate header visibility based on scroll position
-        val headerCollapseFraction by remember {
-            derivedStateOf {
-                val firstVisibleItemIndex = chartGridState.firstVisibleItemIndex
-                val firstVisibleItemOffset = chartGridState.firstVisibleItemScrollOffset
-
-                if (firstVisibleItemIndex == 0) {
-                    val collapseTresholdPx = 200f
-                    (firstVisibleItemOffset / collapseTresholdPx).coerceIn(0f, 1f)
-                } else {
-                    1.0f
-                }
-            }
-        }
 
         // Variables to prevent infinite scroll sync loops
         val isTaskListScrolling = remember { mutableStateOf(false) }
@@ -144,51 +142,24 @@ fun GanttChartView(
         }
 
         Column(modifier = modifier.fillMaxSize().testTag(ganttChartTestTag)) {
-            // Header row with both headers side by side, using measured height
-            AnimatedVisibility(
-                visible = headerCollapseFraction < 1f,
-                enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-                exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Row(
+                // Right side: Group info header
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
-                        .fillMaxWidth()
                         .wrapContentHeight()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Left side: Project info content
-                    headerContent?.let { content ->
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier
-                                .weight(0.6f)
-                                .wrapContentHeight()
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(16.dp)
-                                    .wrapContentHeight()
-                            ) {
-                                content()
-                            }
-                        }
-                    }
-
-                    // Right side: Group info header
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .weight(if (headerContent != null) 0.4f else 1f)
-                            .wrapContentHeight()
-                    ) {
-                        GroupInfoHeader(
-                            groupInfo = state.getGroupInfo(),
-                            taskCountProvider = { group -> state.tasks.count { it.group == group } }
-                        )
-                    }
+                    GroupInfoHeader(
+                        groupInfo = state.getGroupInfo(),
+                        taskCountProvider = { group -> state.tasks.count { it.group == group } }
+                    )
                 }
             }
 
