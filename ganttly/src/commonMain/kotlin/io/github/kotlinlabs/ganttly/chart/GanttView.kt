@@ -17,11 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,7 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -88,60 +85,10 @@ fun GanttChartView(
         var hoveredTaskInfo by remember { mutableStateOf<TaskHoverInfo?>(null) }
         val hoverDebouncer = remember { Debouncer(hoverDelay) }
 
-        // Create separate scroll states for each component
-        val taskListState = rememberLazyListState()
-        val chartGridState = rememberLazyListState()
+        // Create scroll state for the entire view
+        val scrollState = rememberScrollState()
 
-        // Variables to prevent infinite scroll sync loops
-        val isTaskListScrolling = remember { mutableStateOf(false) }
-        val isChartGridScrolling = remember { mutableStateOf(false) }
-
-        // Synchronize the two scroll states with loop prevention
-        LaunchedEffect(Unit) {
-            snapshotFlow { taskListState.firstVisibleItemIndex to taskListState.firstVisibleItemScrollOffset }
-                .collect { (index, offset) ->
-                    // Only synchronize if this is not a response to a chart grid scroll
-                    if (!isChartGridScrolling.value) {
-                        // Signal that task list is controlling the scroll
-                        isTaskListScrolling.value = true
-
-                        // When taskList scrolls, update the chart grid
-                        if (chartGridState.firstVisibleItemIndex != index ||
-                            chartGridState.firstVisibleItemScrollOffset != offset
-                        ) {
-                            chartGridState.scrollToItem(index, offset)
-                        }
-
-                        // Reset the flag after a small delay
-                        kotlinx.coroutines.delay(50)
-                        isTaskListScrolling.value = false
-                    }
-                }
-        }
-
-        LaunchedEffect(Unit) {
-            snapshotFlow { chartGridState.firstVisibleItemIndex to chartGridState.firstVisibleItemScrollOffset }
-                .collect { (index, offset) ->
-                    // Only synchronize if this is not a response to a task list scroll
-                    if (!isTaskListScrolling.value) {
-                        // Signal that chart grid is controlling the scroll
-                        isChartGridScrolling.value = true
-
-                        // When chart grid scrolls, update the taskList
-                        if (taskListState.firstVisibleItemIndex != index ||
-                            taskListState.firstVisibleItemScrollOffset != offset
-                        ) {
-                            taskListState.scrollToItem(index, offset)
-                        }
-
-                        // Reset the flag after a small delay
-                        kotlinx.coroutines.delay(50)
-                        isChartGridScrolling.value = false
-                    }
-                }
-        }
-
-        Column(modifier = modifier.fillMaxSize().testTag(ganttChartTestTag)) {
+        Column(modifier = modifier.fillMaxSize().verticalScroll(scrollState).testTag(ganttChartTestTag)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -163,21 +110,22 @@ fun GanttChartView(
                 }
             }
 
-            // Main chart area
-            Row(modifier = Modifier.weight(1f)) {
+            // Main chart area - remove weight to allow natural height
+            Row(modifier = Modifier.fillMaxWidth()) {
                 if (showTaskList) {
                     TaskListPanel(
                         tasks = state.tasks,
                         width = taskListWidth,
                         rowHeight = rowHeight,
                         headerHeight = headerHeight,
-                        listState = taskListState,
                         onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
-                        modifier = Modifier.fillMaxHeight().testTag(taskListTestTag)
+                        modifier = Modifier.testTag(taskListTestTag)
                     )
 
-                    HorizontalDivider(
-                        modifier = Modifier.fillMaxHeight().width(1.dp)
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .fillMaxHeight()
                             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
                     )
                 }
@@ -185,7 +133,6 @@ fun GanttChartView(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
                 ) {
                     // Draw the chart content
                     TimelinePanel(
@@ -193,7 +140,6 @@ fun GanttChartView(
                         rowHeight = rowHeight,
                         headerHeight = headerHeight,
                         hoveredTaskInfo = hoveredTaskInfo,
-                        listState = chartGridState,
                         onTaskHover = { taskInfo ->
                             if (taskInfo != null) {
                                 hoverDebouncer.debounce {
@@ -205,7 +151,7 @@ fun GanttChartView(
                             }
                         },
                         onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
-                        modifier = Modifier.fillMaxSize().testTag(timelinePanelTestTag)
+                        modifier = Modifier.fillMaxWidth().testTag(timelinePanelTestTag)
                     )
 
                     // Draw the tooltip
@@ -213,8 +159,7 @@ fun GanttChartView(
                         TaskTooltip(
                             task = state.tasks.first { it.id == info.taskId },
                             position = info.position,
-                            allTasks = state.tasks,
-                            layoutInfo = chartGridState.layoutInfo
+                            allTasks = state.tasks
                         )
                     }
                 }
@@ -230,7 +175,6 @@ fun TaskListPanel(
     width: Dp,
     rowHeight: Dp,
     headerHeight: Dp,
-    listState: LazyListState,
     onToggleTaskExpansion: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -250,30 +194,19 @@ fun TaskListPanel(
             )
         }
 
-        // This Box will contain the scrollable content
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+        // Regular Column with all tasks rendered
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(
-                    count = tasks.size,
-                    key = { index -> tasks[index].id }
-                ) { index ->
-                    val task = tasks[index]
-                    TaskNameCell(
-                        task = task,
-                        onToggleExpand = onToggleTaskExpansion,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(rowHeight)
-                            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                    )
-                }
+            tasks.forEach { task ->
+                TaskNameCell(
+                    task = task,
+                    onToggleExpand = onToggleTaskExpansion,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(rowHeight)
+                        .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                )
             }
         }
     }
@@ -342,7 +275,6 @@ fun TimelinePanel(
     rowHeight: Dp,
     headerHeight: Dp,
     hoveredTaskInfo: TaskHoverInfo?,
-    listState: LazyListState,
     onTaskHover: (TaskHoverInfo?) -> Unit,
     onToggleTaskExpansion: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -361,23 +293,16 @@ fun TimelinePanel(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Scrollable content
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            TaskBarsAndDependenciesGrid(
-                tasks = state.tasks,
-                timelineViewInfo = timelineViewInfo,
-                rowHeight = rowHeight,
-                hoveredTaskInfo = hoveredTaskInfo,
-                listState = listState,
-                onTaskHover = onTaskHover,
-                onToggleTaskExpansion = onToggleTaskExpansion, // Pass the toggle function from parameter
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        // Content area - let it size naturally based on content
+        TaskBarsAndDependenciesGrid(
+            tasks = state.tasks,
+            timelineViewInfo = timelineViewInfo,
+            rowHeight = rowHeight,
+            hoveredTaskInfo = hoveredTaskInfo,
+            onTaskHover = onTaskHover,
+            onToggleTaskExpansion = onToggleTaskExpansion,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

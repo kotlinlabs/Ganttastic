@@ -1,13 +1,25 @@
 package io.github.kotlinlabs.ganttly.chart
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyListLayoutInfo
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -29,8 +41,7 @@ import kotlin.time.Duration
 fun TaskTooltip(
     task: GanttTask,
     position: Offset,
-    allTasks: List<GanttTask>,
-    layoutInfo: LazyListLayoutInfo
+    allTasks: List<GanttTask>
 ) {
     val subTaskCount = task.children.size
     val subTasksComplete = task.children.count { it.progress >= 1.0f }
@@ -41,37 +52,14 @@ fun TaskTooltip(
     val tooltipHeight = 250
     val padding = 10
 
-    // Calculate position - this is the critical part
-    // Calculate tooltip position using derivedStateOf
-    val tooltipPosition by remember(position, layoutInfo.viewportSize) {
-        derivedStateOf {
-            val availableWidth = layoutInfo.viewportSize.width
-            val availableHeight = layoutInfo.viewportSize.height
-
-            // Calculate X position - show on right side unless there's not enough space
-            val xPos = if (position.x + (2 * tooltipWidth) + padding > availableWidth) {
-                // Not enough space to the right, show on left
-                (position.x - (tooltipWidth * 2) - padding)
-            } else {
-                // Show on right
-                position.x + padding
-            }
-
-            // Calculate Y position - show below unless there's not enough space
-            val yPos = if (position.y + (2 * tooltipHeight) + padding > availableHeight) {
-                // Not enough space below, show above
-                (position.y - (tooltipHeight) - padding)
-            } else {
-                // Show below
-                position.y + padding
-            }
-
-            IntOffset(xPos.toInt(), yPos.toInt())
-        }
-    }
+    // Simple tooltip positioning without layoutInfo
+    val tooltipPosition = IntOffset(
+        x = (position.x + padding).toInt(),
+        y = (position.y + padding).toInt()
+    )
 
     TooltipPopup(
-        position = IntOffset(tooltipPosition.x, tooltipPosition.y),
+        position = tooltipPosition,
     ) {
         Card(
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
