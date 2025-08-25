@@ -39,6 +39,7 @@ kotlin {
         binaries.executable()
     }
 
+    jvm()
 
     sourceSets {
         val composeBom = project.dependencies.platform(libs.androidx.compose.bom)
@@ -64,7 +65,7 @@ kotlin {
 
 android {
     namespace = "io.github.kotlinlabs.ganttly"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         minSdk = 24
     }

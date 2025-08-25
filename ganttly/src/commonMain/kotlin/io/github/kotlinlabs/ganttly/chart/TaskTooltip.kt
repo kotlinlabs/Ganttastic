@@ -1,13 +1,27 @@
 package io.github.kotlinlabs.ganttly.chart
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyListLayoutInfo
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -30,7 +44,7 @@ fun TaskTooltip(
     task: GanttTask,
     position: Offset,
     allTasks: List<GanttTask>,
-    layoutInfo: LazyListLayoutInfo
+    interactionSource: MutableInteractionSource
 ) {
     val subTaskCount = task.children.size
     val subTasksComplete = task.children.count { it.progress >= 1.0f }
@@ -41,37 +55,15 @@ fun TaskTooltip(
     val tooltipHeight = 250
     val padding = 10
 
-    // Calculate position - this is the critical part
-    // Calculate tooltip position using derivedStateOf
-    val tooltipPosition by remember(position, layoutInfo.viewportSize) {
-        derivedStateOf {
-            val availableWidth = layoutInfo.viewportSize.width
-            val availableHeight = layoutInfo.viewportSize.height
-
-            // Calculate X position - show on right side unless there's not enough space
-            val xPos = if (position.x + (2 * tooltipWidth) + padding > availableWidth) {
-                // Not enough space to the right, show on left
-                (position.x - (tooltipWidth * 2) - padding)
-            } else {
-                // Show on right
-                position.x + padding
-            }
-
-            // Calculate Y position - show below unless there's not enough space
-            val yPos = if (position.y + (2 * tooltipHeight) + padding > availableHeight) {
-                // Not enough space below, show above
-                (position.y - (tooltipHeight) - padding)
-            } else {
-                // Show below
-                position.y + padding
-            }
-
-            IntOffset(xPos.toInt(), yPos.toInt())
-        }
-    }
+    // Position tooltip with much larger offset to prevent hover interference
+    // Similar to GroupInfoHeader's successful positioning strategy
+    val tooltipPosition = IntOffset(
+        x = (position.x + padding + 80).toInt(), // Much larger horizontal offset
+        y = (position.y + padding - 50).toInt()  // Much larger vertical offset above cursor
+    )
 
     TooltipPopup(
-        position = IntOffset(tooltipPosition.x, tooltipPosition.y),
+        position = tooltipPosition,
     ) {
         Card(
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -79,7 +71,9 @@ fun TaskTooltip(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
             ),
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.widthIn(min = 200.dp, max = 300.dp)
+            modifier = Modifier
+                .widthIn(min = 200.dp, max = 300.dp)
+                .hoverable(interactionSource)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),

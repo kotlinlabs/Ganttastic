@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalTestApi::class)
+@file:OptIn(ExperimentalTestApi::class, ExperimentalTime::class)
 
 package io.github.kotlinlabs.ganttly.chart
 
@@ -14,6 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.ExperimentalTime
 
 // TODO: Add tests to verify scrolling and tasks visibility.
 class GanttChartTest {

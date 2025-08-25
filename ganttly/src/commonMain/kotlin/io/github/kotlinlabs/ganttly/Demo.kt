@@ -3,8 +3,9 @@ package io.github.kotlinlabs.ganttly
 import androidx.compose.ui.graphics.Color
 import io.github.kotlinlabs.ganttly.chart.GanttChartState
 import io.github.kotlinlabs.ganttly.models.GanttTask
-import kotlinx.datetime.Clock
+import kotlin.time.Clock.System
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.ExperimentalTime
 
 /**
  * Creates a demo GanttChartState with 100 tasks organized into a hierarchical structure
@@ -18,8 +19,9 @@ import kotlin.time.Duration.Companion.hours
  * - Various progress states
  * - Different task groups with color coordination
  */
+@OptIn(ExperimentalTime::class)
 fun createLargeGanttStateDemo(): GanttChartState {
-    val now = Clock.System.now()
+    val now = System.now()
     val tasks = mutableListOf<GanttTask>()
 
     // Color palette for different groups

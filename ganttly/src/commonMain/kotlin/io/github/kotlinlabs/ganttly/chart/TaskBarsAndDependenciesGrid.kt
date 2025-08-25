@@ -1,13 +1,20 @@
+@file:OptIn(ExperimentalTime::class)
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
@@ -28,7 +35,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,6 +49,7 @@ import kotlinx.datetime.until
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.time.ExperimentalTime
 
 @Composable
 fun TaskBarsAndDependenciesGrid(
@@ -50,7 +57,6 @@ fun TaskBarsAndDependenciesGrid(
     timelineViewInfo: TimelineViewInfo,
     rowHeight: Dp,
     hoveredTaskInfo: TaskHoverInfo?,
-    listState: LazyListState,
     onTaskHover: (TaskHoverInfo?) -> Unit,
     onToggleTaskExpansion: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -91,15 +97,6 @@ fun TaskBarsAndDependenciesGrid(
         }
     }
 
-    // Update the key whenever the list scrolls to force pointerInput to re-initialize
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-            .collect {
-                // Increment the key to force recomposition of pointerInput
-                pointerInputKey.value++
-            }
-    }
-
     Box(
         modifier = modifier
             .clipToBounds()
@@ -123,8 +120,7 @@ fun TaskBarsAndDependenciesGrid(
                                     position = position,
                                     tasks = tasks,
                                     timelineViewInfo = timelineViewInfo,
-                                    rowHeightPx = rowHeightPx,
-                                    listState = listState
+                                    rowHeightPx = rowHeightPx
                                 )
 
                                 if (hoveredTask != null) {
@@ -146,8 +142,7 @@ fun TaskBarsAndDependenciesGrid(
                                     position = position,
                                     tasks = tasks,
                                     timelineViewInfo = timelineViewInfo,
-                                    rowHeightPx = rowHeightPx,
-                                    listState = listState
+                                    rowHeightPx = rowHeightPx
                                 )
 
                                 if (clickedTask != null) {
@@ -173,21 +168,15 @@ fun TaskBarsAndDependenciesGrid(
                 }
             }
     ) {
-        // Use the shared LazyListState for synchronized scrolling
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize().testTag(taskGridListTestTag),
-            userScrollEnabled = true,
+        // Regular Column with all tasks rendered
+        Column(
+            modifier = Modifier.fillMaxWidth().testTag(taskGridListTestTag)
         ) {
-            items(
-                count = tasks.size,
-                key = { index -> tasks[index].id }
-            ) { index ->
-                val task = tasks[index]
+            tasks.forEachIndexed { index, task ->
                 // Create row background
                 Box(
                     modifier = Modifier
-                        .fillParentMaxWidth()
+                        .fillMaxWidth()
                         .height(rowHeight)
                         .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                         .testTag("task_bar_row_${task.id}")
@@ -199,118 +188,82 @@ fun TaskBarsAndDependenciesGrid(
             }
         }
 
-        // This Canvas is drawn on top of the LazyColumn
+        // This Canvas is drawn on top of the Column
         Canvas(modifier = Modifier.matchParentSize()) {
-            val visibleItemInfo = listState.layoutInfo.visibleItemsInfo
-            val firstVisibleItemIndex = visibleItemInfo.firstOrNull()?.index ?: 0
-            val lastVisibleItemIndex = visibleItemInfo.lastOrNull()?.index ?: tasks.lastIndex
-
             clipRect(0f, 0f, chartWidthPx, size.height) {
-                // Draw Dependency Arrows FIRST - only between visible items
+                // Draw Dependency Arrows FIRST - for all tasks
                 // This ensures arrows appear behind task bars
-                for (i in firstVisibleItemIndex..lastVisibleItemIndex) {
-                    if (i < tasks.size) {
-                        val currentTask = tasks[i]
-                        val currentItemInfo = visibleItemInfo.find { it.index == i }
+                tasks.forEachIndexed { i, currentTask ->
+                    val currentTaskTopY = i * rowHeightPx
 
-                        if (currentItemInfo != null) {
-                            val currentTaskTopY = currentItemInfo.offset.toFloat()
+                    // For each dependency this task has
+                    for (parentTaskId in currentTask.dependencies) {
+                        // Find the parent task
+                        val parentTaskIndex = tasks.indexOfFirst { it.id == parentTaskId }
 
-                            // For each dependency this task has
-                            for (parentTaskId in currentTask.dependencies) {
-                                // Find the parent task
-                                val parentTaskIndex = tasks.indexOfFirst { it.id == parentTaskId }
+                        if (parentTaskIndex != -1) {
+                            val parentTask = tasks[parentTaskIndex]
+                            val parentTaskTopY = parentTaskIndex * rowHeightPx
 
-                                if (parentTaskIndex != -1) { // Only check if parent exists, not if it's visible
-                                    val parentTask = tasks[parentTaskIndex]
+                            // Calculate X coordinates
+                            val parentTaskStartX = (timelineViewInfo.viewStartDate.until(
+                                parentTask.startDate, DateTimeUnit.SECOND, TimeZone.UTC
+                            ) * timelineViewInfo.pixelsPerSecond).toFloat()
 
-                                    // Calculate parent task position regardless of visibility
-                                    val parentTaskTopY = if (parentTaskIndex >= firstVisibleItemIndex &&
-                                        parentTaskIndex <= lastVisibleItemIndex
-                                    ) {
-                                        // Parent is visible, get actual position
-                                        val parentItemInfo = visibleItemInfo.find { it.index == parentTaskIndex }
-                                        parentItemInfo?.offset?.toFloat() ?: 0f
-                                    } else {
-                                        // Parent is not visible, calculate position relative to view
-                                        if (parentTaskIndex < firstVisibleItemIndex) {
-                                            // Parent is above the visible area
-                                            0f - ((firstVisibleItemIndex - parentTaskIndex) * rowHeightPx)
-                                        } else {
-                                            // Parent is below the visible area
-                                            size.height + ((parentTaskIndex - lastVisibleItemIndex) * rowHeightPx)
-                                        }
-                                    }
+                            val parentTaskWidthPx = (parentTask.duration.inWholeSeconds *
+                                    timelineViewInfo.pixelsPerSecond).toFloat()
 
-                                    // Calculate X coordinates
-                                    val parentTaskStartX = (timelineViewInfo.viewStartDate.until(
-                                        parentTask.startDate, DateTimeUnit.SECOND, TimeZone.UTC
-                                    ) * timelineViewInfo.pixelsPerSecond).toFloat()
+                            // Parent task bottom center X
+                            val parentTaskBottomCenterX = parentTaskStartX + (parentTaskWidthPx / 2)
 
-                                    val parentTaskWidthPx = (parentTask.duration.inWholeSeconds *
-                                            timelineViewInfo.pixelsPerSecond).toFloat()
+                            // Parent task bottom Y
+                            val barHeight = rowHeightPx * 0.7f
+                            val parentTaskBottomY =
+                                parentTaskTopY + (rowHeightPx - barHeight) / 2 + barHeight
 
-                                    // Parent task bottom center X
-                                    val parentTaskBottomCenterX = parentTaskStartX + (parentTaskWidthPx / 2)
+                            // Current (dependent) task's center start
+                            val currentTaskStartX = (timelineViewInfo.viewStartDate.until(
+                                currentTask.startDate, DateTimeUnit.SECOND, TimeZone.UTC
+                            ) * timelineViewInfo.pixelsPerSecond).toFloat()
 
-                                    // Parent task bottom Y
-                                    val barHeight = rowHeightPx * 0.7f
-                                    val parentTaskBottomY =
-                                        parentTaskTopY + (rowHeightPx - barHeight) / 2 + barHeight
+                            // Current task center Y
+                            val currentTaskCenterY = currentTaskTopY + (rowHeightPx / 2)
 
-                                    // Current (dependent) task's center start
-                                    val currentTaskStartX = (timelineViewInfo.viewStartDate.until(
-                                        currentTask.startDate, DateTimeUnit.SECOND, TimeZone.UTC
-                                    ) * timelineViewInfo.pixelsPerSecond).toFloat()
-
-                                    // Current task center Y
-                                    val currentTaskCenterY = currentTaskTopY + (rowHeightPx / 2)
-
-                                    // Draw arrow from parent's bottom center to current task's center start
-                                    drawDependencyArrow(
-                                        startX = parentTaskBottomCenterX,
-                                        startY = parentTaskBottomY,
-                                        endX = currentTaskStartX,
-                                        endY = currentTaskCenterY,
-                                        arrowColor = arrowColor,
-                                        theme = theme,
-                                    )
-                                }
-                            }
+                            // Draw arrow from parent's bottom center to current task's center start
+                            drawDependencyArrow(
+                                startX = parentTaskBottomCenterX,
+                                startY = parentTaskBottomY,
+                                endX = currentTaskStartX,
+                                endY = currentTaskCenterY,
+                                arrowColor = arrowColor,
+                                theme = theme,
+                            )
                         }
                     }
                 }
 
-                // Draw Task Bars AFTER arrows - only for visible items
+                // Draw Task Bars AFTER arrows - for all tasks
                 // This ensures task bars appear on top of arrows
-                for (i in firstVisibleItemIndex..lastVisibleItemIndex) {
-                    if (i < tasks.size) {
-                        val task = tasks[i]
+                tasks.forEachIndexed { i, task ->
+                    val taskTopY = i * rowHeightPx
 
-                        // Calculate the actual Y position based on the visible item info
-                        val itemInfo = visibleItemInfo.find { it.index == i }
-                        if (itemInfo != null) {
-                            val taskTopY = itemInfo.offset.toFloat()
-
-                            // Draw task bar
-                            drawTaskBar(
-                                drawScope = this,
-                                task = task,
-                                taskTopY = taskTopY,
-                                rowHeightPx = rowHeightPx,
-                                timelineViewInfo = timelineViewInfo,
-                                textMeasurer = textMeasurer,
-                                textStyle = taskTextStyle,
-                                chartWidthPx = chartWidthPx,
-                                isHovered = hoveredTaskInfo?.taskId == task.id,
-                                theme = theme,
-                                onSurfaceColor = arrowColor,
-                                borderWidthHovered = with(density) { 1.5.dp.toPx() },
-                                borderWidthNormal = with(density) { 1.dp.toPx() },
-                                taskBarTextPaddingPx = with(density) { theme.styles.taskBarTextPadding.toPx() }
-                            )
-                        }
-                    }
+                    // Draw task bar
+                    drawTaskBar(
+                        drawScope = this,
+                        task = task,
+                        taskTopY = taskTopY,
+                        rowHeightPx = rowHeightPx,
+                        timelineViewInfo = timelineViewInfo,
+                        textMeasurer = textMeasurer,
+                        textStyle = taskTextStyle,
+                        chartWidthPx = chartWidthPx,
+                        isHovered = hoveredTaskInfo?.taskId == task.id,
+                        theme = theme,
+                        onSurfaceColor = arrowColor,
+                        borderWidthHovered = with(density) { 1.5.dp.toPx() },
+                        borderWidthNormal = with(density) { 1.dp.toPx() },
+                        taskBarTextPaddingPx = with(density) { theme.styles.taskBarTextPadding.toPx() }
+                    )
                 }
             }
         }
@@ -324,38 +277,27 @@ private fun findTaskAtPosition(
     position: Offset,
     tasks: List<GanttTask>,
     timelineViewInfo: TimelineViewInfo,
-    rowHeightPx: Float,
-    listState: LazyListState
+    rowHeightPx: Float
 ): GanttTask? {
-    // Get information about visible items
-    val visibleItems = listState.layoutInfo.visibleItemsInfo
-    if (visibleItems.isEmpty()) return null
+    // Calculate which task row was clicked based on Y position
+    val taskIndex = (position.y / rowHeightPx).toInt()
 
-    // Find which visible item was clicked
-    for (itemInfo in visibleItems) {
-        val itemTop = itemInfo.offset
-        val itemBottom = itemTop + itemInfo.size
+    if (taskIndex < 0 || taskIndex >= tasks.size) return null
 
-        // Check if the click Y position is within this item
-        if (position.y >= itemTop && position.y <= itemBottom) {
-            val task = tasks.getOrNull(itemInfo.index) ?: continue
+    val task = tasks[taskIndex]
 
-            // Now check if X position is within the task bar
-            val taskStartOffsetSeconds = timelineViewInfo.viewStartDate.until(
-                task.startDate, DateTimeUnit.SECOND, TimeZone.UTC
-            )
+    // Now check if X position is within the task bar
+    val taskStartOffsetSeconds = timelineViewInfo.viewStartDate.until(
+        task.startDate, DateTimeUnit.SECOND, TimeZone.UTC
+    )
 
-            val taskX = (taskStartOffsetSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
-            val taskWidthPx = (task.effectiveDuration.inWholeSeconds *
-                    timelineViewInfo.pixelsPerSecond).toFloat()
+    val taskX = (taskStartOffsetSeconds * timelineViewInfo.pixelsPerSecond).toFloat()
+    val taskWidthPx = (task.effectiveDuration.inWholeSeconds *
+            timelineViewInfo.pixelsPerSecond).toFloat()
 
-            // Check if position is within task bar bounds
-            if (position.x >= taskX && position.x <= taskX + taskWidthPx) {
-                return task
-            }
-
-            break // We found the row but not on the task bar
-        }
+    // Check if position is within task bar bounds
+    if (position.x >= taskX && position.x <= taskX + taskWidthPx) {
+        return task
     }
 
     return null
@@ -501,10 +443,12 @@ fun drawTaskBar(
                 // Center text inside bar
                 taskX + (taskWidthPx - textWidth) / 2
             }
+
             TextPlacement.RIGHT -> {
                 // Place text to the right of the bar
                 taskX + taskWidthPx + taskBarTextPaddingPx + indicatorWidth
             }
+
             TextPlacement.LEFT -> {
                 // Place text to the left of the bar
                 taskX - textWidth - taskBarTextPaddingPx - indicatorWidth
@@ -525,7 +469,6 @@ fun drawTaskBar(
 
             val indicatorLayoutResult = textMeasurer.measure(indicator, style = indicatorStyle)
             val indicatorHeight = indicatorLayoutResult.size.height
-
 
 
             // Center vertically

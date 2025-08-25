@@ -1,6 +1,12 @@
 package com.karthyks.ganttastic.web
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.remember
@@ -27,57 +33,58 @@ fun main() {
                 subtasks = "Child jobs"
             }
         }
-        GanttChartView(
-            state = ganttState,
-            headerContent = {
-                // This content will collapse on scroll
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+
+        Column {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    "Project Timeline Overview",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    "This Gantt chart shows all project tasks and their dependencies. " +
+                            "Hover over a task to see details.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Project Timeline Overview",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                        "Total Tasks: ${ganttState.tasks.size}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
                     )
-
-                    Spacer(Modifier.height(8.dp))
 
                     Text(
-                        "This Gantt chart shows all project tasks and their dependencies. " +
-                                "Hover over a task to see details.",
-                        style = MaterialTheme.typography.bodyMedium
+                        "In Progress: ${ganttState.tasks.count { it.progress > 0 && it.progress < 1 }}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
                     )
 
-                    Spacer(Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Total Tasks: ${ganttState.tasks.size}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Text(
-                            "In Progress: ${ganttState.tasks.count { it.progress > 0 && it.progress < 1 }}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Text(
-                            "Completed: ${ganttState.tasks.count { it.progress >= 1 }}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    Text(
+                        "Completed: ${ganttState.tasks.count { it.progress >= 1 }}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
-            },
-            ganttTheme = customTheme
-        )
+            }
+            GanttChartView(
+                state = ganttState,
+                ganttTheme = customTheme
+            )
+        }
+
     }
 }
