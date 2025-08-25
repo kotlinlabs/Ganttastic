@@ -1,5 +1,7 @@
 package io.github.kotlinlabs.ganttly.chart
 
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +43,8 @@ import kotlin.time.Duration
 fun TaskTooltip(
     task: GanttTask,
     position: Offset,
-    allTasks: List<GanttTask>
+    allTasks: List<GanttTask>,
+    interactionSource: MutableInteractionSource
 ) {
     val subTaskCount = task.children.size
     val subTasksComplete = task.children.count { it.progress >= 1.0f }
@@ -52,10 +55,11 @@ fun TaskTooltip(
     val tooltipHeight = 250
     val padding = 10
 
-    // Simple tooltip positioning without layoutInfo
+    // Position tooltip with much larger offset to prevent hover interference
+    // Similar to GroupInfoHeader's successful positioning strategy
     val tooltipPosition = IntOffset(
-        x = (position.x + padding).toInt(),
-        y = (position.y + padding).toInt()
+        x = (position.x + padding + 80).toInt(), // Much larger horizontal offset
+        y = (position.y + padding - 50).toInt()  // Much larger vertical offset above cursor
     )
 
     TooltipPopup(
@@ -67,7 +71,9 @@ fun TaskTooltip(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
             ),
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.widthIn(min = 200.dp, max = 300.dp)
+            modifier = Modifier
+                .widthIn(min = 200.dp, max = 300.dp)
+                .hoverable(interactionSource)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),

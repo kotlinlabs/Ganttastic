@@ -1,10 +1,13 @@
 package io.github.kotlinlabs.ganttly.chart
 
 import TaskBarsAndDependenciesGrid
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +23,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,12 +35,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import io.github.kotlinlabs.ganttly.chart.icons.ArrowDownIcon
 import io.github.kotlinlabs.ganttly.chart.icons.ArrowRightIcon
 import io.github.kotlinlabs.ganttly.models.Debouncer
@@ -81,85 +90,154 @@ fun GanttChartView(
         val taskListTestTag = "task_list_panel"
         val timelinePanelTestTag = "timeline_panel"
 
-        // Add hover state
+        // Add hover state for task tooltips with improved dual hover detection
         var hoveredTaskInfo by remember { mutableStateOf<TaskHoverInfo?>(null) }
+        var isTaskBarHovered by remember { mutableStateOf(false) }
         val hoverDebouncer = remember { Debouncer(hoverDelay) }
+        val taskTooltipInteractionSource = remember { MutableInteractionSource() }
+        val isTaskTooltipHovered by taskTooltipInteractionSource.collectIsHoveredAsState()
+        val tooltipHideDebouncer = remember { Debouncer(300) }
+
+        // Handle task tooltip visibility - show when either task bar or tooltip is hovered
+        LaunchedEffect(isTaskBarHovered, isTaskTooltipHovered, hoveredTaskInfo) {
+            val shouldShow = isTaskBarHovered || isTaskTooltipHovered
+            if (shouldShow && hoveredTaskInfo != null) {
+                tooltipHideDebouncer.cancel()
+                // Tooltip stays visible
+            } else if (!shouldShow && hoveredTaskInfo != null) {
+                tooltipHideDebouncer.debounce {
+                    hoveredTaskInfo = null
+                    isTaskBarHovered = false
+                }
+            }
+        }
+
+        // Add state for legends button hover with popup area detection
+        val legendsInteractionSource = remember { MutableInteractionSource() }
+        val popupInteractionSource = remember { MutableInteractionSource() }
+        val isButtonHovered by legendsInteractionSource.collectIsHoveredAsState()
+        val isPopupHovered by popupInteractionSource.collectIsHoveredAsState()
+        var isLegendsHovered by remember { mutableStateOf(false) }
+        val legendsDebouncer = remember { Debouncer(150) }
+
+        // Handle hover state - show when either button or popup is hovered
+        LaunchedEffect(isButtonHovered, isPopupHovered) {
+            val shouldShow = isButtonHovered || isPopupHovered
+            if (shouldShow) {
+                legendsDebouncer.cancel()
+                isLegendsHovered = true
+            } else {
+                legendsDebouncer.debounce {
+                    isLegendsHovered = false
+                }
+            }
+        }
 
         // Create scroll state for the entire view
         val scrollState = rememberScrollState()
 
-        Column(modifier = modifier.fillMaxSize().verticalScroll(scrollState).testTag(ganttChartTestTag)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Right side: Group info header
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .wrapContentHeight()
-                ) {
-                    GroupInfoHeader(
-                        groupInfo = state.getGroupInfo(),
-                        taskCountProvider = { group -> state.tasks.count { it.group == group } }
-                    )
-                }
-            }
+        Box(modifier = modifier.fillMaxSize().testTag(ganttChartTestTag)) {
+            Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
+                // Main chart area - remove weight to allow natural height
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    if (showTaskList) {
+                        TaskListPanel(
+                            tasks = state.tasks,
+                            width = taskListWidth,
+                            rowHeight = rowHeight,
+                            headerHeight = headerHeight,
+                            onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
+                            modifier = Modifier.testTag(taskListTestTag)
+                        )
 
-            // Main chart area - remove weight to allow natural height
-            Row(modifier = Modifier.fillMaxWidth()) {
-                if (showTaskList) {
-                    TaskListPanel(
-                        tasks = state.tasks,
-                        width = taskListWidth,
-                        rowHeight = rowHeight,
-                        headerHeight = headerHeight,
-                        onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
-                        modifier = Modifier.testTag(taskListTestTag)
-                    )
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                        )
+                    }
 
                     Box(
                         modifier = Modifier
-                            .width(1.dp)
-                            .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                ) {
-                    // Draw the chart content
-                    TimelinePanel(
-                        state = state,
-                        rowHeight = rowHeight,
-                        headerHeight = headerHeight,
-                        hoveredTaskInfo = hoveredTaskInfo,
-                        onTaskHover = { taskInfo ->
-                            if (taskInfo != null) {
-                                hoverDebouncer.debounce {
-                                    hoveredTaskInfo = taskInfo
+                            .weight(1f)
+                    ) {
+                        // Draw the chart content
+                        TimelinePanel(
+                            state = state,
+                            rowHeight = rowHeight,
+                            headerHeight = headerHeight,
+                            hoveredTaskInfo = hoveredTaskInfo,
+                            onTaskHover = { taskInfo ->
+                                if (taskInfo != null) {
+                                    isTaskBarHovered = true
+                                    hoverDebouncer.debounce {
+                                        hoveredTaskInfo = taskInfo
+                                    }
+                                } else {
+                                    hoverDebouncer.cancel()
+                                    isTaskBarHovered = false
                                 }
-                            } else {
-                                hoverDebouncer.cancel()
-                                hoveredTaskInfo = null
-                            }
-                        },
-                        onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
-                        modifier = Modifier.fillMaxWidth().testTag(timelinePanelTestTag)
-                    )
+                            },
+                            onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
+                            modifier = Modifier.fillMaxWidth().testTag(timelinePanelTestTag)
+                        )
 
-                    // Draw the tooltip
-                    hoveredTaskInfo?.let { info ->
-                        TaskTooltip(
-                            task = state.tasks.first { it.id == info.taskId },
-                            position = info.position,
-                            allTasks = state.tasks
+                        // Draw the tooltip
+                        hoveredTaskInfo?.let { info ->
+                            TaskTooltip(
+                                task = state.tasks.first { it.id == info.taskId },
+                                position = info.position,
+                                allTasks = state.tasks,
+                                interactionSource = taskTooltipInteractionSource
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Sticky "Show Legends" button in top right corner
+            FloatingActionButton(
+                onClick = { /* No action needed, only hover */ },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                interactionSource = legendsInteractionSource
+            ) {
+                // Custom info icon using Canvas
+                val iconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                Canvas(
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    drawInfoIcon(iconColor)
+                }
+            }
+
+            // Legends popup on hover
+            if (isLegendsHovered) {
+                Popup(
+                    alignment = Alignment.TopEnd,
+                    offset = IntOffset(-32, 70), // Position further away from button
+                    onDismissRequest = { /* Don't dismiss on request for hover behavior */ },
+                    properties = PopupProperties(
+                        focusable = false,
+                        dismissOnBackPress = false,
+                        dismissOnClickOutside = false
+                    )
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(8.dp),
+                        shadowElevation = 8.dp,
+                        modifier = Modifier
+                            .wrapContentHeight()
+                            .fillMaxWidth(0.33f) // Occupy one third of screen width
+                            .hoverable(popupInteractionSource)
+                    ) {
+                        GroupInfoHeader(
+                            groupInfo = state.getGroupInfo(),
+                            taskCountProvider = { group -> state.tasks.count { it.group == group } }
                         )
                     }
                 }
@@ -358,4 +436,39 @@ fun SimpleTimelineHeader(
                 .padding(end = 8.dp)
         )
     }
+}
+
+/**
+ * Draws a simple info icon (circle with 'i')
+ */
+fun DrawScope.drawInfoIcon(color: Color) {
+    val center = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
+    val radius = size.minDimension / 2 * 0.8f
+
+    // Draw circle outline
+    drawCircle(
+        color = color,
+        radius = radius,
+        center = center,
+        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+    )
+
+    // Draw the 'i' dot
+    drawCircle(
+        color = color,
+        radius = 1.5.dp.toPx(),
+        center = androidx.compose.ui.geometry.Offset(center.x, center.y - radius * 0.3f)
+    )
+
+    // Draw the 'i' stem
+    val stemWidth = 2.dp.toPx()
+    val stemHeight = radius * 0.6f
+    drawRect(
+        color = color,
+        topLeft = androidx.compose.ui.geometry.Offset(
+            center.x - stemWidth / 2,
+            center.y - radius * 0.05f
+        ),
+        size = androidx.compose.ui.geometry.Size(stemWidth, stemHeight)
+    )
 }
