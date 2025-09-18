@@ -133,19 +133,53 @@ fun GanttChartView(
             }
         }
 
-        // Create scroll state for the entire view
+        // Create scroll state for the content areas only
         val scrollState = rememberScrollState()
 
         Box(modifier = modifier.fillMaxSize().testTag(ganttChartTestTag)) {
-            Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
-                // Main chart area - remove weight to allow natural height
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Fixed Headers Row - stays at top, doesn't scroll
                 Row(modifier = Modifier.fillMaxWidth()) {
                     if (showTaskList) {
-                        TaskListPanel(
+                        // Task List Header - Fixed
+                        TaskListHeader(
+                            width = taskListWidth,
+                            headerHeight = headerHeight
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(headerHeight)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                        )
+                    }
+
+                    // Timeline Header - Fixed
+                    SimpleTimelineHeader(
+                        timelineViewInfo = state.timelineViewInfo,
+                        headerHeight = headerHeight,
+                        modifier = Modifier
+                            .weight(1f)
+                            .onSizeChanged { newSize ->
+                                state.chartWidthPx = newSize.width.toFloat()
+                            }
+                    )
+                }
+
+                // Scrollable Content Row - this scrolls under the fixed headers
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(scrollState)
+                ) {
+                    if (showTaskList) {
+                        // Task List Content - Scrollable
+                        TaskListContent(
                             tasks = state.tasks,
                             width = taskListWidth,
                             rowHeight = rowHeight,
-                            headerHeight = headerHeight,
                             onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
                             modifier = Modifier.testTag(taskListTestTag)
                         )
@@ -162,11 +196,11 @@ fun GanttChartView(
                         modifier = Modifier
                             .weight(1f)
                     ) {
-                        // Draw the chart content
-                        TimelinePanel(
-                            state = state,
+                        // Timeline Content - Scrollable
+                        TaskBarsAndDependenciesGrid(
+                            tasks = state.tasks,
+                            timelineViewInfo = state.timelineViewInfo,
                             rowHeight = rowHeight,
-                            headerHeight = headerHeight,
                             hoveredTaskInfo = hoveredTaskInfo,
                             onTaskHover = { taskInfo ->
                                 if (taskInfo != null) {
@@ -248,6 +282,49 @@ fun GanttChartView(
 
 
 @Composable
+fun TaskListHeader(
+    width: Dp,
+    headerHeight: Dp,
+    modifier: Modifier = Modifier
+) {
+    val theme = GanttTheme.current
+    Box(
+        modifier = modifier
+            .width(width)
+            .height(headerHeight)
+            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            theme.naming.taskListHeader,
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+
+@Composable
+fun TaskListContent(
+    tasks: List<GanttTask>,
+    width: Dp,
+    rowHeight: Dp,
+    onToggleTaskExpansion: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.width(width)) {
+        tasks.forEach { task ->
+            TaskNameCell(
+                task = task,
+                onToggleExpand = onToggleTaskExpansion,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(rowHeight)
+                    .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+            )
+        }
+    }
+}
+
+@Composable
 fun TaskListPanel(
     tasks: List<GanttTask>,
     width: Dp,
@@ -256,37 +333,18 @@ fun TaskListPanel(
     onToggleTaskExpansion: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val theme = GanttTheme.current
+    // Keep this for backward compatibility, but it's now split into Header + Content
     Column(modifier = modifier.width(width)) {
-        // Header box - fixed at the top
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(headerHeight)
-                .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                theme.naming.taskListHeader,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-
-        // Regular Column with all tasks rendered
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            tasks.forEach { task ->
-                TaskNameCell(
-                    task = task,
-                    onToggleExpand = onToggleTaskExpansion,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(rowHeight)
-                        .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                )
-            }
-        }
+        TaskListHeader(
+            width = width,
+            headerHeight = headerHeight
+        )
+        TaskListContent(
+            tasks = tasks,
+            width = width,
+            rowHeight = rowHeight,
+            onToggleTaskExpansion = onToggleTaskExpansion
+        )
     }
 }
 
@@ -347,42 +405,8 @@ fun TaskNameCell(
 }
 
 
-@Composable
-fun TimelinePanel(
-    state: GanttChartState,
-    rowHeight: Dp,
-    headerHeight: Dp,
-    hoveredTaskInfo: TaskHoverInfo?,
-    onTaskHover: (TaskHoverInfo?) -> Unit,
-    onToggleTaskExpansion: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val timelineViewInfo = state.timelineViewInfo
-
-    Column(
-        modifier = modifier.onSizeChanged { newSize ->
-            state.chartWidthPx = newSize.width.toFloat()
-        }
-    ) {
-        // Fixed header
-        SimpleTimelineHeader(
-            timelineViewInfo = timelineViewInfo,
-            headerHeight = headerHeight,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // Content area - let it size naturally based on content
-        TaskBarsAndDependenciesGrid(
-            tasks = state.tasks,
-            timelineViewInfo = timelineViewInfo,
-            rowHeight = rowHeight,
-            hoveredTaskInfo = hoveredTaskInfo,
-            onTaskHover = onTaskHover,
-            onToggleTaskExpansion = onToggleTaskExpansion,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
+// TimelinePanel is now split into SimpleTimelineHeader (fixed) and TaskBarsAndDependenciesGrid (scrollable)
+// This function is kept for backward compatibility but is no longer used in the main layout
 
 
 @Composable
