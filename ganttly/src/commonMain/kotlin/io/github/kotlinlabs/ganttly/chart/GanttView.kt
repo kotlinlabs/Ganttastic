@@ -82,7 +82,8 @@ fun GanttChartView(
     headerHeight: Dp = DEFAULT_HEADER_HEIGHT_DP.dp,
     showTaskList: Boolean = true,
     hoverDelay: Long = 150,
-    ganttTheme: GanttThemeConfig = GanttTheme.current
+    ganttTheme: GanttThemeConfig = GanttTheme.current,
+    enableSmartOrdering: Boolean = true
 ) {
     ProvideGanttTheme(ganttTheme) {
         val currentThemeColors = GanttTheme.current.colors
@@ -94,6 +95,11 @@ fun GanttChartView(
 
             // Apply the new theme colors to the tasks
             state.applyThemeColors(currentThemeColors)
+        }
+        
+        // Apply smart ordering setting
+        LaunchedEffect(enableSmartOrdering) {
+            state.enableSmartOrdering = enableSmartOrdering
         }
 
         // Define test tags for UI testing

@@ -78,14 +78,24 @@ class GanttChartState(
 
     // Track if all tasks should be expanded initially
     private val _expandAllByDefault = mutableStateOf(true)
+    
+    // Enable/disable dependency-aware task ordering
+    private val _enableSmartOrdering = mutableStateOf(true)
 
     // Validation result
     private val _validationErrors = mutableStateOf<List<String>>(emptyList())
     val validationErrors: List<String> get() = _validationErrors.value
 
     init {
-        // Validate the initial task hierarchy
-        _validationErrors.value = validateTaskHierarchy(initialTasks)
+        // Apply smart ordering and validate the initial task hierarchy
+        val optimizedTasks = if (_enableSmartOrdering.value) {
+            optimizeTaskOrdering(initialTasks, true)
+        } else {
+            initialTasks
+        }
+        _hierarchicalTasks.value = optimizedTasks
+        _flattenedTasks.value = flattenTasks(optimizedTasks)
+        _validationErrors.value = validateTaskHierarchy(optimizedTasks)
     }
 
     // Public accessor for the flattened tasks (used by UI)
@@ -100,9 +110,28 @@ class GanttChartState(
 
     // Set hierarchical tasks and update flattened view
     fun setHierarchicalTasks(newTasks: List<GanttTask>) {
-        _hierarchicalTasks.value = newTasks
-        _flattenedTasks.value = flattenTasks(newTasks)
-        _validationErrors.value = validateTaskHierarchy(newTasks)
+        val optimizedTasks = if (_enableSmartOrdering.value) {
+            optimizeTaskOrdering(newTasks, true)
+        } else {
+            newTasks
+        }
+        _hierarchicalTasks.value = optimizedTasks
+        _flattenedTasks.value = flattenTasks(optimizedTasks)
+        _validationErrors.value = validateTaskHierarchy(optimizedTasks)
+    }
+    
+    // Enable or disable smart task ordering
+    var enableSmartOrdering: Boolean
+        get() = _enableSmartOrdering.value
+        set(value) {
+            _enableSmartOrdering.value = value
+            // Re-apply ordering when setting changes
+            setHierarchicalTasks(_hierarchicalTasks.value)
+        }
+    
+    // Manually trigger task reordering optimization
+    fun reorderTasks() {
+        setHierarchicalTasks(_hierarchicalTasks.value)
     }
 
     // Toggle a task's expanded state
@@ -135,8 +164,7 @@ class GanttChartState(
         // Navigate to parent and add child
         val updatedTasks = addTaskAtPath(_hierarchicalTasks.value, parentPath, 0, newTask)
         if (updatedTasks != null) {
-            _hierarchicalTasks.value = updatedTasks
-            _flattenedTasks.value = flattenTasks(updatedTasks)
+            setHierarchicalTasks(updatedTasks)
             return true
         }
         return false
@@ -146,9 +174,7 @@ class GanttChartState(
     fun updateTask(taskId: String, updater: (GanttTask) -> GanttTask): Boolean {
         val updatedTasks = updateTaskById(_hierarchicalTasks.value, taskId, updater)
         if (updatedTasks != null) {
-            _hierarchicalTasks.value = updatedTasks
-            _flattenedTasks.value = flattenTasks(updatedTasks)
-            _validationErrors.value = validateTaskHierarchy(updatedTasks)
+            setHierarchicalTasks(updatedTasks)
             return true
         }
         return false
@@ -603,6 +629,150 @@ fun flattenTasks(tasks: List<GanttTask>): List<GanttTask> {
 
     return result
 }
+
+/**
+ * Optimizes task ordering to minimize dependency arrow lengths
+ * Uses a topological sort with dependency distance optimization
+ */
+fun optimizeTaskOrdering(tasks: List<GanttTask>, enableOptimization: Boolean = true): List<GanttTask> {
+    if (!enableOptimization || tasks.isEmpty()) {
+        return tasks
+    }
+    
+    // Step 1: Sort top-level tasks based on their dependencies
+    val sortedTopLevel = sortTasksByDependencies(tasks)
+    
+    // Step 2: For each top-level task, recursively optimize its children
+    return sortedTopLevel.map { task ->
+        if (task.hasChildren) {
+            val optimizedChildren = optimizeTaskOrdering(task.children, true)
+            task.copy(children = optimizedChildren)
+        } else {
+            task
+        }
+    }
+}
+
+/**
+ * Sort a flat list of tasks based on their dependencies using topological sort
+ */
+private fun sortTasksByDependencies(tasks: List<GanttTask>): List<GanttTask> {
+    if (tasks.isEmpty()) return tasks
+    
+    val taskMap = tasks.associateBy { it.id }
+    
+    // Create adjacency lists for dependencies
+    val dependsOn = mutableMapOf<String, MutableList<String>>()
+    val dependents = mutableMapOf<String, MutableList<String>>()
+    
+    tasks.forEach { task ->
+        dependsOn[task.id] = task.dependencies.toMutableList()
+        dependents[task.id] = mutableListOf()
+    }
+    
+    // Build reverse dependency map
+    tasks.forEach { task ->
+        task.dependencies.forEach { depId ->
+            dependents[depId]?.add(task.id)
+        }
+    }
+    
+    // Perform topological sort
+    return topologicalSortWithClustering(tasks, dependsOn, dependents)
+}
+
+/**
+ * Get all tasks recursively, maintaining hierarchy information
+ */
+private fun getAllTasksRecursive(tasks: List<GanttTask>): List<GanttTask> {
+    val result = mutableListOf<GanttTask>()
+    tasks.forEach { task ->
+        result.add(task)
+        result.addAll(getAllTasksRecursive(task.children))
+    }
+    return result
+}
+
+/**
+ * Topological sort that tries to keep dependent tasks close together
+ */
+private fun topologicalSortWithClustering(
+    tasks: List<GanttTask>,
+    dependsOn: Map<String, List<String>>,
+    dependents: Map<String, List<String>>
+): List<GanttTask> {
+    val result = mutableListOf<GanttTask>()
+    val visited = mutableSetOf<String>()
+    val inProgress = mutableSetOf<String>()
+    val taskMap = tasks.associateBy { it.id }
+    
+    // Find root tasks (no dependencies)
+    val rootTasks = tasks.filter { dependsOn[it.id]?.isEmpty() == true }
+    
+    // Process each root task and its cluster
+    rootTasks.forEach { rootTask ->
+        if (rootTask.id !in visited) {
+            processTaskCluster(rootTask, taskMap, dependsOn, dependents, visited, inProgress, result)
+        }
+    }
+    
+    // Handle any remaining tasks (in case of cycles or orphaned tasks)
+    tasks.forEach { task ->
+        if (task.id !in visited) {
+            processTaskCluster(task, taskMap, dependsOn, dependents, visited, inProgress, result)
+        }
+    }
+    
+    return result
+}
+
+/**
+ * Process a task and its immediate dependents as a cluster
+ */
+private fun processTaskCluster(
+    task: GanttTask,
+    taskMap: Map<String, GanttTask>,
+    dependsOn: Map<String, List<String>>,
+    dependents: Map<String, List<String>>,
+    visited: MutableSet<String>,
+    inProgress: MutableSet<String>,
+    result: MutableList<GanttTask>
+) {
+    if (task.id in visited || task.id in inProgress) return
+    
+    inProgress.add(task.id)
+    
+    // First, ensure all dependencies are processed
+    dependsOn[task.id]?.forEach { depId ->
+        taskMap[depId]?.let { depTask ->
+            if (depTask.id !in visited) {
+                processTaskCluster(depTask, taskMap, dependsOn, dependents, visited, inProgress, result)
+            }
+        }
+    }
+    
+    // Add current task
+    if (task.id !in visited) {
+        visited.add(task.id)
+        result.add(task)
+    }
+    
+    inProgress.remove(task.id)
+    
+    // Process immediate dependents to keep them close
+    dependents[task.id]?.take(3)?.forEach { depId -> // Limit to 3 immediate dependents to avoid deep nesting
+        taskMap[depId]?.let { depTask ->
+            if (depTask.id !in visited && depTask.id !in inProgress) {
+                // Check if all dependencies of this dependent are satisfied
+                val allDepsSatisfied = dependsOn[depTask.id]?.all { it in visited } ?: true
+                if (allDepsSatisfied) {
+                    processTaskCluster(depTask, taskMap, dependsOn, dependents, visited, inProgress, result)
+                }
+            }
+        }
+    }
+}
+
 
 
 /**
