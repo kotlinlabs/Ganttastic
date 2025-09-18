@@ -113,7 +113,8 @@ fun createLargeGanttStateDemo(): GanttChartState {
                 progress = subphaseTasks.map { it.progress }.average().toFloat(),
                 group = phaseGroup,
                 color = groupColors[phaseGroup] ?: Color.Gray,
-                isExpanded = true
+                isExpanded = true,
+                url = "https://example.com"
             )
 
             subphases.add(subphase)

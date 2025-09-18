@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package io.github.kotlinlabs.ganttly.chart
 
 import TaskBarsAndDependenciesGrid
@@ -8,6 +10,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,8 +42,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -51,11 +58,15 @@ import io.github.kotlinlabs.ganttly.chart.icons.ArrowRightIcon
 import io.github.kotlinlabs.ganttly.models.Debouncer
 import io.github.kotlinlabs.ganttly.models.GanttTask
 import io.github.kotlinlabs.ganttly.models.TaskHoverInfo
+import io.github.kotlinlabs.ganttly.models.TimelineHoverInfo
 import io.github.kotlinlabs.ganttly.models.TimelineViewInfo
+import kotlin.time.Duration.Companion.seconds
 import io.github.kotlinlabs.ganttly.styles.GanttTheme
 import io.github.kotlinlabs.ganttly.styles.GanttThemeConfig
 import io.github.kotlinlabs.ganttly.styles.ProvideGanttTheme
 import io.github.kotlinlabs.ganttly.styles.TaskGroupColorCoordinator
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.ExperimentalTime
 
 
 const val DEFAULT_TASK_LIST_WIDTH_DP = 220
@@ -71,7 +82,8 @@ fun GanttChartView(
     headerHeight: Dp = DEFAULT_HEADER_HEIGHT_DP.dp,
     showTaskList: Boolean = true,
     hoverDelay: Long = 150,
-    ganttTheme: GanttThemeConfig = GanttTheme.current
+    ganttTheme: GanttThemeConfig = GanttTheme.current,
+    enableSmartOrdering: Boolean = true
 ) {
     ProvideGanttTheme(ganttTheme) {
         val currentThemeColors = GanttTheme.current.colors
@@ -83,6 +95,11 @@ fun GanttChartView(
 
             // Apply the new theme colors to the tasks
             state.applyThemeColors(currentThemeColors)
+        }
+        
+        // Apply smart ordering setting
+        LaunchedEffect(enableSmartOrdering) {
+            state.enableSmartOrdering = enableSmartOrdering
         }
 
         // Define test tags for UI testing
@@ -97,6 +114,10 @@ fun GanttChartView(
         val taskTooltipInteractionSource = remember { MutableInteractionSource() }
         val isTaskTooltipHovered by taskTooltipInteractionSource.collectIsHoveredAsState()
         val tooltipHideDebouncer = remember { Debouncer(300) }
+
+        // Add state for vertical hover line on timeline header
+        var timelineHoverInfo by remember { mutableStateOf<TimelineHoverInfo?>(null) }
+        val timelineHoverDebouncer = remember { Debouncer(100) } // Debounce to smooth exit
 
         // Handle task tooltip visibility - show when either task bar or tooltip is hovered
         LaunchedEffect(isTaskBarHovered, isTaskTooltipHovered, hoveredTaskInfo) {
@@ -133,19 +154,64 @@ fun GanttChartView(
             }
         }
 
-        // Create scroll state for the entire view
+        // Create scroll state for the content areas only
         val scrollState = rememberScrollState()
 
         Box(modifier = modifier.fillMaxSize().testTag(ganttChartTestTag)) {
-            Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
-                // Main chart area - remove weight to allow natural height
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Fixed Headers Row - stays at top, doesn't scroll
                 Row(modifier = Modifier.fillMaxWidth()) {
                     if (showTaskList) {
-                        TaskListPanel(
+                        // Task List Header - Fixed
+                        TaskListHeader(
+                            width = taskListWidth,
+                            headerHeight = headerHeight
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(headerHeight)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+                        )
+                    }
+
+                    // Timeline Header - Fixed
+                    SimpleTimelineHeader(
+                        timelineViewInfo = state.timelineViewInfo,
+                        headerHeight = headerHeight,
+                        onTimelineHover = { hoverInfo -> 
+                            if (hoverInfo != null) {
+                                // Immediately show the line for responsiveness
+                                timelineHoverInfo = hoverInfo
+                            } else {
+                                // Debounce the hide to prevent flickering
+                                timelineHoverDebouncer.debounce {
+                                    timelineHoverInfo = null
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .onSizeChanged { newSize ->
+                                state.chartWidthPx = newSize.width.toFloat()
+                            }
+                    )
+                }
+
+                // Scrollable Content Row - this scrolls under the fixed headers
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(scrollState)
+                ) {
+                    if (showTaskList) {
+                        // Task List Content - Scrollable
+                        TaskListContent(
                             tasks = state.tasks,
                             width = taskListWidth,
                             rowHeight = rowHeight,
-                            headerHeight = headerHeight,
                             onToggleTaskExpansion = { taskId -> state.toggleTaskExpansion(taskId) },
                             modifier = Modifier.testTag(taskListTestTag)
                         )
@@ -162,11 +228,11 @@ fun GanttChartView(
                         modifier = Modifier
                             .weight(1f)
                     ) {
-                        // Draw the chart content
-                        TimelinePanel(
-                            state = state,
+                        // Timeline Content - Scrollable
+                        TaskBarsAndDependenciesGrid(
+                            tasks = state.tasks,
+                            timelineViewInfo = state.timelineViewInfo,
                             rowHeight = rowHeight,
-                            headerHeight = headerHeight,
                             hoveredTaskInfo = hoveredTaskInfo,
                             onTaskHover = { taskInfo ->
                                 if (taskInfo != null) {
@@ -194,6 +260,17 @@ fun GanttChartView(
                         }
                     }
                 }
+            }
+
+            // Draw vertical hover line across entire chart when hovering over timeline header
+            timelineHoverInfo?.let { hoverInfo ->
+                TimelineVerticalHoverLine(
+                    xPosition = hoverInfo.xPosition,
+                    time = hoverInfo.time,
+                    headerHeight = headerHeight,
+                    showTaskList = showTaskList,
+                    taskListWidth = if (showTaskList) taskListWidth + 1.dp else 0.dp
+                )
             }
 
             // Sticky "Show Legends" button in top right corner
@@ -248,6 +325,49 @@ fun GanttChartView(
 
 
 @Composable
+fun TaskListHeader(
+    width: Dp,
+    headerHeight: Dp,
+    modifier: Modifier = Modifier
+) {
+    val theme = GanttTheme.current
+    Box(
+        modifier = modifier
+            .width(width)
+            .height(headerHeight)
+            .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            theme.naming.taskListHeader,
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+
+@Composable
+fun TaskListContent(
+    tasks: List<GanttTask>,
+    width: Dp,
+    rowHeight: Dp,
+    onToggleTaskExpansion: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.width(width)) {
+        tasks.forEach { task ->
+            TaskNameCell(
+                task = task,
+                onToggleExpand = onToggleTaskExpansion,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(rowHeight)
+                    .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+            )
+        }
+    }
+}
+
+@Composable
 fun TaskListPanel(
     tasks: List<GanttTask>,
     width: Dp,
@@ -256,37 +376,18 @@ fun TaskListPanel(
     onToggleTaskExpansion: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val theme = GanttTheme.current
+    // Keep this for backward compatibility, but it's now split into Header + Content
     Column(modifier = modifier.width(width)) {
-        // Header box - fixed at the top
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(headerHeight)
-                .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                theme.naming.taskListHeader,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-
-        // Regular Column with all tasks rendered
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            tasks.forEach { task ->
-                TaskNameCell(
-                    task = task,
-                    onToggleExpand = onToggleTaskExpansion,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(rowHeight)
-                        .border(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                )
-            }
-        }
+        TaskListHeader(
+            width = width,
+            headerHeight = headerHeight
+        )
+        TaskListContent(
+            tasks = tasks,
+            width = width,
+            rowHeight = rowHeight,
+            onToggleTaskExpansion = onToggleTaskExpansion
+        )
     }
 }
 
@@ -347,48 +448,15 @@ fun TaskNameCell(
 }
 
 
-@Composable
-fun TimelinePanel(
-    state: GanttChartState,
-    rowHeight: Dp,
-    headerHeight: Dp,
-    hoveredTaskInfo: TaskHoverInfo?,
-    onTaskHover: (TaskHoverInfo?) -> Unit,
-    onToggleTaskExpansion: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val timelineViewInfo = state.timelineViewInfo
-
-    Column(
-        modifier = modifier.onSizeChanged { newSize ->
-            state.chartWidthPx = newSize.width.toFloat()
-        }
-    ) {
-        // Fixed header
-        SimpleTimelineHeader(
-            timelineViewInfo = timelineViewInfo,
-            headerHeight = headerHeight,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // Content area - let it size naturally based on content
-        TaskBarsAndDependenciesGrid(
-            tasks = state.tasks,
-            timelineViewInfo = timelineViewInfo,
-            rowHeight = rowHeight,
-            hoveredTaskInfo = hoveredTaskInfo,
-            onTaskHover = onTaskHover,
-            onToggleTaskExpansion = onToggleTaskExpansion,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
+// TimelinePanel is now split into SimpleTimelineHeader (fixed) and TaskBarsAndDependenciesGrid (scrollable)
+// This function is kept for backward compatibility but is no longer used in the main layout
 
 
 @Composable
 fun SimpleTimelineHeader(
     timelineViewInfo: TimelineViewInfo,
     headerHeight: Dp,
+    onTimelineHover: (TimelineHoverInfo?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // Add test tag for UI testing
@@ -401,6 +469,32 @@ fun SimpleTimelineHeader(
             .fillMaxWidth()
             .border(theme.styles.timelineHeaderBorderWidth, borderColor)
             .testTag(timelineHeaderTestTag)
+            .pointerInput(timelineViewInfo) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        when (event.type) {
+                            PointerEventType.Move -> {
+                                val position = event.changes.first().position
+                                // Calculate time at hover position
+                                val timeAtPosition = calculateTimeAtPosition(
+                                    xPosition = position.x,
+                                    timelineViewInfo = timelineViewInfo
+                                )
+                                onTimelineHover(
+                                    TimelineHoverInfo(
+                                        xPosition = position.x,
+                                        time = timeAtPosition
+                                    )
+                                )
+                            }
+                            PointerEventType.Exit -> {
+                                onTimelineHover(null)
+                            }
+                        }
+                    }
+                }
+            }
     ) {
         // Start time label
         Text(
@@ -435,6 +529,112 @@ fun SimpleTimelineHeader(
                 .align(Alignment.CenterEnd)
                 .padding(end = 8.dp)
         )
+    }
+}
+
+/**
+ * Calculates the time at a given X position in the timeline
+ */
+fun calculateTimeAtPosition(xPosition: Float, timelineViewInfo: TimelineViewInfo): String {
+    // Calculate the time offset from the start of the timeline
+    val secondsFromStart = xPosition / timelineViewInfo.pixelsPerSecond
+    val timeAtPosition = timelineViewInfo.viewStartDate + secondsFromStart.toLong().seconds
+    
+    // Convert to local time and format as hh:mm
+    val localTime = timeAtPosition.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+    return "${localTime.hour.toString().padStart(2, '0')}:${localTime.minute.toString().padStart(2, '0')}"
+}
+
+/**
+ * Draws a vertical hover line across the entire chart with time tooltip
+ */
+@Composable
+fun TimelineVerticalHoverLine(
+    xPosition: Float,
+    time: String,
+    headerHeight: Dp,
+    showTaskList: Boolean,
+    taskListWidth: Dp
+) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val headerHeightPx = with(density) { headerHeight.toPx() }
+    val taskListWidthPx = with(density) { taskListWidth.toPx() }
+    val adjustedXPosition = if (showTaskList) xPosition + taskListWidthPx else xPosition
+    val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+    
+    // Get theme colors outside of Canvas context
+    val tooltipBackgroundColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
+    val tooltipTextColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
+    val textStyle = androidx.compose.material3.MaterialTheme.typography.labelMedium
+    
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Draw the vertical line using Canvas
+        Canvas(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Draw solid vertical line (more visible than dotted)
+            val lineColor = Color.Red.copy(alpha = 0.8f) // Red color for better visibility
+            val strokeWidth = 2.dp.toPx() // Thicker line
+            
+            // Draw solid line from header bottom to chart bottom
+            drawLine(
+                color = lineColor,
+                start = androidx.compose.ui.geometry.Offset(adjustedXPosition, headerHeightPx),
+                end = androidx.compose.ui.geometry.Offset(adjustedXPosition, size.height),
+                strokeWidth = strokeWidth,
+                pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                    floatArrayOf(10f, 5f), // 10px dash, 5px gap
+                    0f
+                )
+            )
+        }
+        
+        // Draw time tooltip directly on the Canvas to avoid any pointer interference
+        Canvas(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Draw the tooltip background and text directly on canvas
+            val tooltipX = adjustedXPosition - 25.dp.toPx()
+            val tooltipY = headerHeightPx - 35.dp.toPx()
+            val tooltipWidth = 50.dp.toPx()
+            val tooltipHeight = 24.dp.toPx()
+            
+            // Draw tooltip background
+            drawRoundRect(
+                color = tooltipBackgroundColor,
+                topLeft = androidx.compose.ui.geometry.Offset(tooltipX, tooltipY),
+                size = androidx.compose.ui.geometry.Size(tooltipWidth, tooltipHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx())
+            )
+            
+            // Draw tooltip shadow/border for better visibility
+            drawRoundRect(
+                color = Color.Black.copy(alpha = 0.1f),
+                topLeft = androidx.compose.ui.geometry.Offset(tooltipX - 1.dp.toPx(), tooltipY - 1.dp.toPx()),
+                size = androidx.compose.ui.geometry.Size(tooltipWidth + 2.dp.toPx(), tooltipHeight + 2.dp.toPx()),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+            )
+        }
+        
+        // Draw text using a separate Canvas that doesn't interfere with positioning
+        Canvas(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            val finalTextStyle = textStyle.copy(
+                color = tooltipTextColor,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+            )
+            
+            val textLayoutResult = textMeasurer.measure(time, style = finalTextStyle)
+            val textX = adjustedXPosition - (textLayoutResult.size.width / 2f)
+            val textY = headerHeightPx - 35.dp.toPx() + (24.dp.toPx() - textLayoutResult.size.height) / 2f
+            
+            drawText(
+                textLayoutResult = textLayoutResult,
+                topLeft = androidx.compose.ui.geometry.Offset(textX, textY)
+            )
+        }
     }
 }
 
