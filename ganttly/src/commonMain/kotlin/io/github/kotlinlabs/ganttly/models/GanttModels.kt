@@ -146,3 +146,9 @@ data class TimelineViewInfo(
     val pixelsPerSecond: Double, // Determines zoom level. How many pixels represent one second.
     val headerCells: List<TimelineHeaderCell> // Pre-calculated header cells
 )
+
+// Represents hover information for timeline vertical line
+data class TimelineHoverInfo(
+    val xPosition: Float,
+    val time: String // formatted time in hh:mm format
+)
