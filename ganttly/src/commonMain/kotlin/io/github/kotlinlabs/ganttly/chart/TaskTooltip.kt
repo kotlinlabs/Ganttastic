@@ -1,5 +1,6 @@
 package io.github.kotlinlabs.ganttly.chart
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -35,9 +36,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import io.github.kotlinlabs.ganttly.chart.icons.CircleIcon
+import io.github.kotlinlabs.ganttly.chart.icons.ExternalLinkIcon
 import io.github.kotlinlabs.ganttly.models.GanttTask
 import io.github.kotlinlabs.ganttly.styles.GanttTheme
 import kotlin.time.Duration
+
+/**
+ * Platform-specific function to open URL in browser
+ */
+expect fun openUrlInBrowser(url: String)
 
 @Composable
 fun TaskTooltip(
@@ -50,9 +57,6 @@ fun TaskTooltip(
     val subTasksComplete = task.children.count { it.progress >= 1.0f }
     val theme = GanttTheme.current
 
-    // Fixed size approximation for tooltip (can be refined)
-    val tooltipWidth = 300
-    val tooltipHeight = 250
     val padding = 10
 
     // Position tooltip with much larger offset to prevent hover interference
@@ -79,12 +83,37 @@ fun TaskTooltip(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Task name
-                Text(
-                    text = task.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                // Task name - clickable if URL exists
+                if (!task.url.isNullOrBlank()) {
+                    // Clickable task name with external link icon
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .clickable {
+                                // Open URL in new tab/window
+                                openUrlInBrowser(task.url)
+                            }
+                    ) {
+                        Text(
+                            text = task.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary // Use primary color for links
+                        )
+                        ExternalLinkIcon(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else {
+                    // Regular non-clickable task name
+                    Text(
+                        text = task.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
                 // Task details
                 Row {

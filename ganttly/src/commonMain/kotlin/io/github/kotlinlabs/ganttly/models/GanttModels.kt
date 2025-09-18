@@ -22,7 +22,8 @@ data class GanttTask(
     internal val color: Color = Color(0xFF4CAF50),
     val children: List<GanttTask> = emptyList(),
     val isExpanded: Boolean = true, // Whether subtasks are visible
-    val level: Int = 0
+    val level: Int = 0,
+    val url: String? = null // Optional URL for clickable task names
 ) {
     // For parent tasks, the endDate is determined by the latest endDate of children
     val endDate: Instant by lazy {
@@ -91,7 +92,8 @@ data class GanttTask(
             group: String = "",
             color: Color = Color(0xFF4CAF50),
             isExpanded: Boolean = true,
-            level: Int = 0
+            level: Int = 0,
+            url: String? = null
         ): GanttTask {
             // Ensure children is not empty
             require(children.isNotEmpty()) { "Parent task must have at least one child" }
@@ -123,7 +125,8 @@ data class GanttTask(
                 color = color,
                 children = updatedChildren,
                 isExpanded = isExpanded,
-                level = level
+                level = level,
+                url = url
             )
         }
 
