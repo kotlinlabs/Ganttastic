@@ -278,7 +278,7 @@ fun GanttChartView(
                 onClick = { /* No action needed, only hover */ },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(16.dp),
+                    .padding(top = 42.dp, end = 16.dp),
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 interactionSource = legendsInteractionSource
             ) {
@@ -340,7 +340,7 @@ fun TaskListHeader(
     ) {
         Text(
             theme.naming.taskListHeader,
-            style = MaterialTheme.typography.labelSmall
+            style = theme.typography.taskListTextStyle
         )
     }
 }
@@ -366,31 +366,6 @@ fun TaskListContent(
         }
     }
 }
-
-@Composable
-fun TaskListPanel(
-    tasks: List<GanttTask>,
-    width: Dp,
-    rowHeight: Dp,
-    headerHeight: Dp,
-    onToggleTaskExpansion: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // Keep this for backward compatibility, but it's now split into Header + Content
-    Column(modifier = modifier.width(width)) {
-        TaskListHeader(
-            width = width,
-            headerHeight = headerHeight
-        )
-        TaskListContent(
-            tasks = tasks,
-            width = width,
-            rowHeight = rowHeight,
-            onToggleTaskExpansion = onToggleTaskExpansion
-        )
-    }
-}
-
 
 @Composable
 fun TaskNameCell(
@@ -438,9 +413,10 @@ fun TaskNameCell(
         }
 
         // Task name
+        val theme = GanttTheme.current
         Text(
             text = task.name,
-            style = MaterialTheme.typography.bodySmall,
+            style = theme.typography.taskListTextStyle,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -499,8 +475,7 @@ fun SimpleTimelineHeader(
         // Start time label
         Text(
             text = timelineViewInfo.headerCells.firstOrNull()?.label ?: "",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = theme.typography.timelineHeaderTextStyle.copy(fontWeight = FontWeight.Bold),
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = 8.dp)
@@ -514,8 +489,7 @@ fun SimpleTimelineHeader(
         ) {
             Text(
                 text = "Total Duration - ${formatDuration(timelineViewInfo.totalViewDuration)}",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Medium,
+                style = theme.typography.timelineHeaderTextStyle.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
@@ -523,8 +497,7 @@ fun SimpleTimelineHeader(
         // End time label
         Text(
             text = timelineViewInfo.headerCells.lastOrNull()?.label ?: "",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = theme.typography.timelineHeaderTextStyle.copy(fontWeight = FontWeight.Bold),
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 8.dp)
@@ -562,10 +535,11 @@ fun TimelineVerticalHoverLine(
     val adjustedXPosition = if (showTaskList) xPosition + taskListWidthPx else xPosition
     val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
     
-    // Get theme colors outside of Canvas context
+    // Get theme colors and typography outside of Canvas context
+    val theme = GanttTheme.current
     val tooltipBackgroundColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
     val tooltipTextColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
-    val textStyle = androidx.compose.material3.MaterialTheme.typography.labelMedium
+    val textStyle = theme.typography.timelineHeaderTextStyle
     
     Box(modifier = Modifier.fillMaxSize()) {
         // Draw the vertical line using Canvas

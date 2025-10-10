@@ -13,8 +13,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.CanvasBasedWindow
 import io.github.kotlinlabs.ganttly.chart.GanttChartView
 import io.github.kotlinlabs.ganttly.createLargeGanttStateDemo
@@ -31,6 +34,24 @@ fun main() {
                 taskGroups = "Stage"
                 noGroupsMessage = "No stages found"
                 subtasks = "Child jobs"
+            }
+
+            typography {
+                taskBarTextStyle = TextStyle(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp
+                )
+
+                timelineHeaderTextStyle = TextStyle(
+                    fontFamily = FontFamily.SansSerif,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                tooltipTitleStyle = TextStyle(
+                    fontFamily = FontFamily.SansSerif,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 

@@ -69,7 +69,7 @@ fun TaskBarsAndDependenciesGrid(
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val rowHeightPx = with(density) { rowHeight.toPx() }
-    val taskTextStyle = MaterialTheme.typography.labelSmall.copy(color = LocalContentColor.current)
+    val taskTextStyle = theme.typography.taskBarTextStyle.copy(color = LocalContentColor.current)
 
     val taskVerticalPositions = remember { mutableStateMapOf<String, Float>() }
     val arrowColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
