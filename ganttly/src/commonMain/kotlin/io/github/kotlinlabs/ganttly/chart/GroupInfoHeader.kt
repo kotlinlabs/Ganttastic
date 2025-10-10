@@ -47,8 +47,7 @@ fun GroupInfoHeader(
     ) {
         Text(
             theme.naming.taskGroups,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = theme.typography.groupHeaderTextStyle.copy(fontWeight = FontWeight.Bold),
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
@@ -78,8 +77,7 @@ fun GroupInfoHeader(
 
                             Text(
                                 text = group,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Medium,
+                                style = theme.typography.groupHeaderTextStyle.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
@@ -88,7 +86,7 @@ fun GroupInfoHeader(
                             val taskCount = taskCountProvider(group)
                             Text(
                                 text = "($taskCount)",
-                                style = MaterialTheme.typography.bodySmall,
+                                style = theme.typography.groupHeaderTextStyle,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
                         }
@@ -98,7 +96,7 @@ fun GroupInfoHeader(
         } else {
             Text(
                 theme.naming.noGroupsMessage,
-                style = MaterialTheme.typography.bodyMedium,
+                style = theme.typography.groupHeaderTextStyle,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         }

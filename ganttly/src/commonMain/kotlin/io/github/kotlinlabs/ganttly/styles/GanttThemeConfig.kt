@@ -1,8 +1,11 @@
 package io.github.kotlinlabs.ganttly.styles
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Main theme class that holds all theme configuration
@@ -11,6 +14,7 @@ class GanttThemeConfig {
     var colors = GanttColors()
     var styles = GanttStyles()
     var naming = GanttNaming()
+    var typography = GanttTypography()
 
     // Builder functions for DSL
     fun colors(init: GanttColors.() -> Unit) {
@@ -23,6 +27,10 @@ class GanttThemeConfig {
 
     fun naming(init: GanttNaming.() -> Unit) {
         naming = GanttNaming().apply(init)
+    }
+
+    fun typography(init: GanttTypography.() -> Unit) {
+        typography = GanttTypography().apply(init)
     }
 }
 
@@ -149,6 +157,21 @@ class GanttNaming {
     var taskListHeader: String = "Tasks" // Add this if it doesn't exist
 
     var subtasks: String = "Subtasks"
+}
+
+/**
+ * Typography configuration for Gantt chart
+ */
+class GanttTypography {
+    var taskBarTextStyle: TextStyle = TextStyle.Default.copy(fontSize = 12.sp)
+    var timelineHeaderTextStyle: TextStyle = TextStyle.Default.copy(fontSize = 14.sp)
+    var tooltipTitleStyle: TextStyle = TextStyle.Default.copy(
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Bold
+    )
+    var tooltipBodyStyle: TextStyle = TextStyle.Default.copy(fontSize = 14.sp)
+    var taskListTextStyle: TextStyle = TextStyle.Default.copy(fontSize = 14.sp)
+    var groupHeaderTextStyle: TextStyle = TextStyle.Default.copy(fontSize = 14.sp)
 }
 
 /**

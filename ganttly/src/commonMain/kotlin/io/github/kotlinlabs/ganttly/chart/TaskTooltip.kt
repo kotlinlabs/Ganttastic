@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -77,10 +80,13 @@ fun TaskTooltip(
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier
                 .widthIn(min = 200.dp, max = 300.dp)
+                .heightIn(max = 400.dp)
                 .hoverable(interactionSource)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Task name - clickable if URL exists
@@ -97,8 +103,7 @@ fun TaskTooltip(
                     ) {
                         Text(
                             text = task.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            style = theme.typography.tooltipTitleStyle,
                             color = MaterialTheme.colorScheme.primary // Use primary color for links
                         )
                         ExternalLinkIcon(
@@ -110,8 +115,7 @@ fun TaskTooltip(
                     // Regular non-clickable task name
                     Text(
                         text = task.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        style = theme.typography.tooltipTitleStyle
                     )
                 }
 
@@ -120,11 +124,11 @@ fun TaskTooltip(
                     Text(
                         text = "Duration: ",
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = theme.typography.tooltipBodyStyle
                     )
                     Text(
                         text = formatDuration(task.duration),
-                        style = MaterialTheme.typography.bodyMedium
+                        style = theme.typography.tooltipBodyStyle
                     )
                 }
 
@@ -134,7 +138,7 @@ fun TaskTooltip(
                         Text(
                             text = "Progress: ",
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
+                            style = theme.typography.tooltipBodyStyle
                         )
                         LinearProgressIndicator(
                             progress = { task.progress },
@@ -144,7 +148,7 @@ fun TaskTooltip(
                         )
                         Text(
                             text = " ${(task.progress * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodyMedium
+                            style = theme.typography.tooltipBodyStyle
                         )
                     }
                 }
@@ -158,7 +162,7 @@ fun TaskTooltip(
                     )
                     Text(
                         text = "${theme.naming.subtasks}: $subTasksComplete/$subTaskCount complete",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = theme.typography.tooltipBodyStyle,
                         fontWeight = FontWeight.Bold
                     )
 
@@ -181,7 +185,7 @@ fun TaskTooltip(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = subtask.name,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = theme.typography.tooltipBodyStyle,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -199,7 +203,7 @@ fun TaskTooltip(
                     )
                     Text(
                         text = "Dependencies:",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = theme.typography.tooltipBodyStyle,
                         fontWeight = FontWeight.Bold
                     )
 
@@ -216,7 +220,7 @@ fun TaskTooltip(
                                 ) {
                                     Text(
                                         text = depTask.name,
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = theme.typography.tooltipBodyStyle,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
